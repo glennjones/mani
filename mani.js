@@ -20,7 +20,6 @@ Documents = function( options ){
 			this._textProperties = options.textProperties;
 		}
 	}
-	
 };
 
 
@@ -84,23 +83,25 @@ Documents.prototype.add = function (doc, emitEvent) {
 		// flatten the object structure based on options.fields;
     	this._lunrIndex.add( this.flatten(doc), emitEvent )
 	}
+	return doc;
 }
 
+/*
 // remove document from collection
-Documents.prototype.remove = function (doc, emitEvent) {
-    return this._lunrIndex.remove( doc, emitEvent )
+Documents.prototype.remove = function (doc ) {
+    return this._lunrIndex.remove( doc )
 }
 
 // update document from collection
-Documents.prototype.update = function (doc, emitEvent) {
-    return this._lunrIndex.update( doc, emitEvent )
+Documents.prototype.update = function (doc ) {
+    return this._lunrIndex.update( doc )
 }
 
 // return collection as JSON
 Documents.prototype.toJSON = function () {
     return this._lunrIndex.toJSON();
 }
-
+*/
 
 
 module.exports = Documents;
@@ -187,7 +188,9 @@ function Mani(options) {
  	return new Mani.Index(options);
 }
 
+
 Mani.version = '0.0.2';
+
 
 
 Mani.Index = function (options) {
@@ -269,24 +272,29 @@ Mani.Index.prototype.search = function (options) {
 }
 
 
-Mani.Index.prototype.add = function (doc, emitEvent) {
+Mani.Index.prototype.add = function (doc) {
 	if(Array.isArray(doc)){
+		var self = this,
+			failed = false;
 		doc.forEach(function(item) {
-			this.documents.add(doc);
+			if(self.documents.add(item) === null){
+				failed = true;
+			};
 		})
+		return (failed)? null : doc;
 	}else{
-		this.documents.add(doc, emitEvent);
+		return this.documents.add(doc);
 	}
 }
 
 
-/*Mani.Index.prototype.remove = function (doc, emitEvent) {
-    return this._lunrIndex.remove( doc, emitEvent )
+/*Mani.Index.prototype.remove = function (doc) {
+    return this._lunrIndex.remove( doc )
 }
 
 
-Mani.Index.prototype.update = function (doc, emitEvent) {
-    return this._lunrIndex.update( doc, emitEvent )
+Mani.Index.prototype.update = function (doc ) {
+    return this._lunrIndex.update( doc )
 }
 
 
