@@ -114,7 +114,9 @@ describe('paging', function() {
  		assert.deepEqual(Paging.page(options, docs).info, {
 	 			"itemCount": 20,
 	        	"startAt": 6,
-	        	"limit": 5
+	        	"limit": 5,
+	        	"pageCount": 4,
+			   	"page": 2
 	        }, "should return paging information");
 
  	})
@@ -134,11 +136,11 @@ describe('paging', function() {
 		'text': 'test',
 		'paging': {
 			'startAt': 6,
-			'limit': 5
+			'limit': 5,
 		}
 	})
 
-	console.log(JSON.stringify(returnedItem));
+	//console.log(JSON.stringify(returnedItem));
 
  	it("page - full index", function(){
  		assert.equal(returnedItem.items.length, 5, "should return 5 documents");

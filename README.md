@@ -13,7 +13,7 @@ Mani provides a document based search tool in javascript. It can be used in a br
 	* field boast
 	* injects match score
 * ~~Query~~
-	* ~~Simple query based on Mongodb syntax~~
+	* ~~Simple queries based on Mongodb syntax~~
 * GEO search
 	* Nearby query/sort
 	* injects distance	

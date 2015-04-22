@@ -296,12 +296,11 @@ Geo.prototype.nearby = function ( options, subSet ) {
 		formattedResults = null,
 		docs = this._getDocumentSubSet(subSet);
 
-	// offset is measured in meters 
-	// limit is the number of results to return
+	var limit = this._getResultLimit( options );
 
 	// excute free text search
 	if(options.nearby){
-		geoResults = GeoLib.findNearest(options.nearby, docs, options.nearby.offset, options.nearby.limit);
+		geoResults = GeoLib.findNearest(options.nearby, docs, options.nearby.offset, limit);
 		if(geoResults){
 			// reformat to result format
 			if(!Array.isArray(geoResults)){
@@ -316,6 +315,26 @@ Geo.prototype.nearby = function ( options, subSet ) {
 
 	// format [{"ref":"12","distance":34.6}]
 	return formattedResults
+}
+
+
+// use get result limit based on paging options
+Geo.prototype._getResultLimit = function ( options ) {
+	var out = null;
+	if(options.paging){
+		
+		var startAtNum = utilities.reach(options,'paging.startAt'),
+			limitNum = utilities.reach(options,'paging.limit');
+
+
+		if(limitNum !== undefined){
+			out = limitNum;
+			if(startAtNum !== undefined){
+				out = startAtNum-1 + limitNum;
+			}
+		}
+	}
+	return out;
 }
 
 
@@ -416,6 +435,9 @@ Mani.Index = function (options) {
 }
 
 
+// expose externally 
+Mani.geo = Geo;
+Mani.lunr = Lunr;
 
 
 
@@ -432,14 +454,13 @@ Mani.Index.prototype.search = function (options) {
 		resultSet  = this._freetext.search( options, resultSet );
 	}
 
-	// excute geo search
+	// excute geo nearby search
 	if(options.nearby){
 		resultSet  = this._geo.nearby( options, resultSet );
 	}
 
-	// excute geo search
+	// excute paging
 	if(options.paging){
-		console.log(JSON.stringify(resultSet))
 		var pagingResults = Paging.page( options, resultSet );
 		resultSet = pagingResults.documents;
 		if(pagingResults.info){
@@ -534,24 +555,29 @@ function page(options, documents){
 	if(this.options.paging && Array.isArray(documents)){
 		out.info = {itemCount: _size(documents)};
 
-		if(this.options.paging.startAt){
-			var startAtNum = this.options.paging.startAt;
+		var startAtNum = utilities.reach(this.options,'paging.startAt'),
+			limitNum = utilities.reach(this.options,'paging.limit');
+
+		if(startAtNum){
 			if(startAtNum < out.info.itemCount){
 				out.info.startAt = startAtNum
 				documents = _startAt(startAtNum, documents)
 			}
 		}
 
-		if(this.options.paging.limit){
-			var limitNum = this.options.paging.limit;
+		if(limitNum){
 			if(limitNum < documents.length){
 				out.info.limit = limitNum
 				documents = _limit(limitNum, documents)
 			}
 
+			// add page info
+			out.info.pageCount = Math.ceil( out.info.itemCount / limitNum );
+			if(startAtNum){
+				out.info.page = Math.ceil( startAtNum / limitNum );
+			}
 		}
 
-		// add pageNumber
 
 		out.documents = documents;
 	}

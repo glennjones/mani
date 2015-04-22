@@ -182,3 +182,39 @@ describe('geo', function() {
  	})
 
 })
+
+
+
+describe('geo', function() {
+
+	var pagingOptions1 = {
+	    'paging': {
+			'limit': 10,
+		}
+	}
+
+	var pagingOptions2 = {
+	    'paging': {
+			'startAt': 6,
+			'limit': 5,
+		}
+	}
+
+	var geoObj = new geo(options);
+
+ 	it("_getResultLimit", function(){
+ 		assert.equal(geoObj._getResultLimit(pagingOptions1), 10, "should return limit of 10");
+ 		assert.equal(geoObj._getResultLimit(pagingOptions2), 10, "should return limit of 10");
+ 	})
+
+})
+
+
+
+
+
+
+
+
+
+
