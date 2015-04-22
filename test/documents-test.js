@@ -40,36 +40,15 @@ var searchResults =  [{"ref":"1","score":0.30815769789216485}];
 
 describe('document', function() {
 
+	var documentsObj = new documents({});
 
-	var index = new mani(options),
-	documentOptions = {
-		'lunrIndex': index._lunrIndex,
-		'textProperties': options.text
-	};
-
-	var documentsObj = new documents(documentOptions);
-
-   	it("collection created", function(){
-   		assert(Array.isArray(documentsObj.items), "should have an items array");
-		assert.deepEqual(documentsObj._textProperties, options.text, "should have textProperties assigned");
-		assert.isNotNull(documentsObj._lunrIndex, "should have created a lunr index");
-   	})
+ 	it("collection created", function(){
+ 		assert(Array.isArray(documentsObj.items), "should have an items array");
+ 	})
 
 })
 
-describe('document', function() {
 
-	var index = new mani(options);
-   	index.add(docs);
-
-	var flat = index.documents.flatten(index.documents.items[0]);
-	//console.log(flat)
-
-   	it("flatten", function(){
-		assert.deepEqual(flat, { p0: 'test 1', p1: 'using foo', id: 0 }, "should return flat object for lunr");
-   	})
-
-})
 
 
 describe('document', function() {

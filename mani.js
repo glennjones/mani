@@ -5,39 +5,11 @@ var _			= require('lodash'),
 
 // create a documents collection that encapsules lunr interface
 Documents = function( options ){
+	this.options = (options)? options : {};
 	this.items = [];
 	this._fields = [];
 	this._idCount = 0;
-	this._lunrIndex = null;
-	this.options = {};
-
-	if(options){
-		this.options = options;
-		if(options.lunrIndex){
-			this._lunrIndex = options.lunrIndex;
-		}
-		if(options.textProperties){
-			this._textProperties = options.textProperties;
-		}
-	}
 };
-
-
-// flatten an item for use with lunr based passed options
-Documents.prototype.flatten = function ( item ) {
-	var out = {}
-	if(this._textProperties){
-		this._textProperties.forEach(function(prop, i) {
-			var val = utilities.reach(item, prop.path);
-			if(val){
-				out['p'+i] = val;
-			} 
-		})
-		out.id = item.id;
-	}
-	return out;
-}
-
 
 
 // return document by id
@@ -65,24 +37,29 @@ Documents.prototype.getItemsFromResults = function ( results ){
 	while (x < i) {
 		var id = parseInt(results[x].ref,10);
 		var item = this.getItemById( id );
-		item.score = results[x].score;
+
+		// add free text score
+		if(results[x].score !== undefined){
+			item.score = results[x].score;	
+		}
+
+		// add geo distance
+		if(results[x].distance !== undefined){
+			item.distance = results[x].distance;	
+		}
+		
     	out.push(item);
-    	break;
 	    x++;
 	}
 	return out;
 }
 
+
 // add document to collection
-Documents.prototype.add = function (doc, emitEvent) {
+Documents.prototype.add = function (doc) {
 	doc.id = this._idCount;
 	this._idCount ++;
 	this.items.push(doc);
-
-	if(this._lunrIndex){
-		// flatten the object structure based on options.fields;
-    	this._lunrIndex.add( this.flatten(doc), emitEvent )
-	}
 	return doc;
 }
 
@@ -101,11 +78,16 @@ Documents.prototype.update = function (doc ) {
 Documents.prototype.toJSON = function () {
     return this._lunrIndex.toJSON();
 }
+
+
+Documents.prototype.count = function () {
+    return this.items.length;
+}
 */
 
 
 module.exports = Documents;
-},{"./utilities":7,"lodash":9}],2:[function(require,module,exports){
+},{"./utilities":6,"lodash":8}],2:[function(require,module,exports){
 var _			= require('lodash'),
 	utilities	= require('./utilities');
 
@@ -167,54 +149,38 @@ Facets.prototype.build = function(documents, options, results) {
 
 
 module.exports = Facets;
-},{"./utilities":7,"lodash":9}],3:[function(require,module,exports){
-
-},{}],4:[function(require,module,exports){
-
+},{"./utilities":6,"lodash":8}],3:[function(require,module,exports){
 var Lunr		= require('lunr'),
-	GeoLib		= require('geolib'),
-	utilities	= require('./utilities'),
-	documents	= require('./documents'),
-	query		= require('./query'),
-	geo			= require('./geo'),
-	facets		= require('./facets'),
-	paging		= require('./paging');
+	utilities	= require('./utilities');
 
 
-console.log(Lunr.version)
+// create a documents collection that encapsules lunr interface
+FreeText = function( options ){
+	this._lunrIndex = null;
+	this.options = {};
 
-function Mani(options) {
-    this.version = '0.0.1';
- 	return new Mani.Index(options);
-}
+	if(options && options.text){
+		this.options.text = options.text
+		this._lunrIndex = this._getLunrIndex(this.options);
+	}
+};
 
 
-Mani.version = '0.0.2';
+FreeText.prototype.search = function (options) {
+	var ftsResults = null;
 
-
-
-Mani.Index = function (options) {
-    this._lunr = Lunr;
-    this._lunrIndex = null;
-
-    // needs text options
-    if(options && options.text){
-	    this._lunrIndex = this._getLunrIndex(options);    	
-	    this.documents = new Documents({
-			'lunrIndex': this._lunrIndex,
-			'textProperties': options.text
-		});
+	// excute free text search
+	if(options && options.text){
+		ftsResults = this._lunrIndex.search( options.text );
 	}
 
-    this.facets = function(options){
-    	var facets = new Facets();
-    	return facets.build(this.documents, options)
-    } 
-
+	// format [{"ref":"1","score":0.30815769789216485}]
+	return ftsResults; 
 }
 
 
-Mani.Index.prototype._getLunrIndex = function (options) {
+// creates a lunr schema function and returns lunr index object
+FreeText.prototype._getLunrIndex = function (options) {
 	// build function based config from JSON
 	if(options && options.text){
 		var config = (function () {
@@ -237,55 +203,272 @@ Mani.Index.prototype._getLunrIndex = function (options) {
 }
 
 
-/*(function () {
-			this.field('name', {boost: 20})
-			this.field('street-address')
-			this.field('locality', {boost: 10})
-			this.field('region')
-			this.field('postal-code')
-			this.field('country-name', {boost: 5})
-			this.field('category', {boost: 20})
-			this.ref('id')
-		})*/
+
+
+// flatten an item for use with lunr based passed options
+FreeText.prototype._flatten = function ( item ) {
+	var out = {}
+	if(this.options.text){
+		this.options.text.forEach(function(prop, i) {
+			var val = utilities.reach(item, prop.path);
+			if(val){
+				out['p'+i] = val;
+			} 
+		})
+		out.id = item.id;
+	}
+	return out;
+}
+
+
+// add document to collection
+FreeText.prototype.add = function (doc) {
+	if(this._lunrIndex){
+		// flatten the object structure based on options.fields;
+    	this._lunrIndex.add( this._flatten(doc))
+	}
+	return doc;
+}
+
+/*
+// remove document from collection
+Documents.prototype.remove = function (doc ) {
+    return this._lunrIndex.remove( doc )
+}
+
+// update document from collection
+Documents.prototype.update = function (doc ) {
+    return this._lunrIndex.update( doc )
+}
+
+// return collection as JSON
+Documents.prototype.toJSON = function () {
+    return this._lunrIndex.toJSON();
+}
+
+
+Documents.prototype.count = function () {
+    return this.items.length;
+}
+*/
+
+
+
+
+
+
+module.exports = FreeText;
+},{"./utilities":6,"lunr":9}],4:[function(require,module,exports){
+var _			= require('lodash'),
+	GeoLib		= require('geolib'),
+	utilities	= require('./utilities');
+
+
+// 
+Geo = function( options ){
+	this.items = [];
+	this.options = {};
+	if(options.geo){
+		this.options = options;
+	}
+};
+
+
+Geo.prototype.search = function ( options, subSet ) {
+	this.options = (options)? options : {};
+
+	if(options.nearby){
+		return this.nearby( options );
+	}
+}
+
+
+// 
+Geo.prototype.nearby = function ( options, subSet ) {
+	this.options = (options)? options : {};
+	var geoResults = null,
+		formattedResults = null,
+		docs = this._getDocumentSubSet(subSet);
+
+	// offset is measured in meters 
+	// limit is the number of results to return
+
+	// excute free text search
+	if(options.nearby){
+		geoResults = GeoLib.findNearest(options.nearby, docs, options.nearby.offset, options.nearby.limit);
+		if(geoResults){
+			// reformat to result format
+			if(!Array.isArray(geoResults)){
+				geoResults = [geoResults];
+			}
+			formattedResults = [];		
+			geoResults.forEach(function(item, i) {
+				formattedResults.push({'ref': item.key, 'distance': item.distance});
+			})
+		}
+	}
+
+	// format [{"ref":"12","distance":34.6}]
+	return formattedResults
+}
+
+
+// flatten an item for use with geolib
+Geo.prototype._flatten = function ( item ) {
+	var out = {}
+	if( utilities.reach(this, 'options.geo.point') ){
+		out.ref = item.id;
+	    out.latitude = this._getFloat( utilities.reach(item, utilities.reach(this, 'options.geo.point.latitudePath')) );
+        out.longitude = this._getFloat( utilities.reach(item, utilities.reach(this, 'options.geo.point.longitudePath')) );
+	}
+	return out;
+}
+
+
+// get a float value from string and/or first item in any array
+Geo.prototype._getFloat = function ( obj ) {
+	if(Array.isArray( obj )){
+		obj = obj[0];
+	}
+	if(_.isString(obj)){
+		obj = parseFloat(obj)
+	}
+	return obj;
+}
+
+
+// add document to collection
+Geo.prototype._getDocumentSubSet = function ( subSet ) {
+	var self = this,
+		out = [];
+
+	if(subSet){
+		subSet.forEach(function(item) {
+			self.items.forEach(function(doc) {
+				if(parseInt(item.ref,10) === doc.ref){
+					out.push(doc)
+				}
+			})
+		})	
+	}else{
+		out = this.items;
+	}
+
+	return out;
+}
+
+
+// add document to collection
+Geo.prototype.add = function (doc) {
+	this.items.push(this._flatten(doc));
+	return doc;
+}
+
+
+/*Geo.prototype.update = function (doc) {
+
+}
+
+
+Geo.prototype.remove = function (doc) {
+
+}*/
+
+
+
+
+module.exports = Geo;
+},{"./utilities":6,"geolib":7,"lodash":8}],5:[function(require,module,exports){
+
+var Lunr		= require('lunr'),
+	GeoLib		= require('geolib'),
+	Utilities	= require('./utilities'),
+	Documents	= require('./documents'),
+	FreeText	= require('./freetext'),
+	Geo			= require('./geo'),
+	Facets		= require('./facets');
+
+
+console.log(Lunr.version)
+
+function Mani(options) {
+    this.version = '0.0.2';
+ 	return new Mani.Index(options);
+}
+
+
+
+Mani.Index = function (options) {
+	this.options = (options)? options : {};
+
+	this.documents = new Documents(this.options);
+    this._freetext = new FreeText(this.options);
+    this._geo = new Geo(this.options);
+    //this._facets = new Facets(options);
+
+}
+
+
+
 
 
 Mani.Index.prototype.search = function (options) {
+	options = (options)? options : {};
 	var out = {
 		'criteria' : options,
 		'items': []
 	},
-		ftsResults = null;
+	resultSet = null;
 
 	// excute free text search
-	if(options && options.text){
-		ftsResults = this._lunrIndex.search( options.text );
-		out.items = this.documents.getItemsFromResults( ftsResults );
+	if(options.text){
+		resultSet  = this._freetext.search( options, resultSet );
 	}
 
+	// excute geo search
+	if(options.nearby){
+		resultSet  = this._geo.nearby( options, resultSet);
+	}
+
+	out.items = this.documents.getItemsFromResults( resultSet );
+
 	// excute facet build based on results
-	if(options && options.facets){
+	if(options.facets){
 		var facets = new Facets();
-    	out.facets = facets.build(this.documents, options.facets, ftsResults)
+    	out.facets = facets.build(this.documents, options.facets, resultSet)
 	}
 
 	return out; 
 }
 
 
-Mani.Index.prototype.add = function (doc) {
-	if(Array.isArray(doc)){
-		var self = this,
-			failed = false;
-		doc.forEach(function(item) {
-			if(self.documents.add(item) === null){
-				failed = true;
-			};
-		})
-		return (failed)? null : doc;
+Mani.Index.prototype.facets = function (options) {
+	if(options){
+		var facets = new Facets();
+    	return facets.build(this.documents, options)
 	}else{
-		return this.documents.add(doc);
+		return null;
 	}
 }
+
+
+Mani.Index.prototype.add = function (doc) {
+	if(Array.isArray(doc)){
+		var self = this;
+		doc.forEach(function(item) {
+			self.documents.add(item);
+			self._freetext.add(item);
+	    	self._geo.add(item);
+		})
+		return doc;
+	}else{
+		this.documents.add(doc);
+		this._freetext.add(doc);
+    	this._geo.add(doc);
+		return doc;
+	}
+}
+
 
 
 /*Mani.Index.prototype.remove = function (doc) {
@@ -316,11 +499,7 @@ module.exports = Mani;
 
  
 
-},{"./documents":1,"./facets":2,"./geo":3,"./paging":5,"./query":6,"./utilities":7,"geolib":8,"lunr":10}],5:[function(require,module,exports){
-arguments[4][3][0].apply(exports,arguments)
-},{"dup":3}],6:[function(require,module,exports){
-arguments[4][3][0].apply(exports,arguments)
-},{"dup":3}],7:[function(require,module,exports){
+},{"./documents":1,"./facets":2,"./freetext":3,"./geo":4,"./utilities":6,"geolib":7,"lunr":9}],6:[function(require,module,exports){
 
 
 
@@ -357,7 +536,7 @@ exports.reach = function (obj, chain, options) {
 
     return ref;
 };
-},{}],8:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 /*! geolib 2.0.14 by Manuel Bieh
 * Library to provide geo functions like distance calculation,
 * conversion of decimal coordinates to sexagesimal and vice versa, etc.
@@ -1508,7 +1687,7 @@ exports.reach = function (obj, chain, options) {
 	}
 
 }(this));
-},{}],9:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -13315,7 +13494,7 @@ exports.reach = function (obj, chain, options) {
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],10:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 /**
  * lunr - http://lunrjs.com - A bit like Solr, but much smaller and not as bright - 0.5.8
  * Copyright (C) 2015 Oliver Nightingale
@@ -15221,5 +15400,5 @@ lunr.TokenStore.prototype.toJSON = function () {
   }))
 })()
 
-},{}]},{},[4])(4)
+},{}]},{},[5])(5)
 });

@@ -46,8 +46,9 @@ describe('index', function() {
 
    it("created", function(){
       assert.isNotNull(index, "mani index NOT created");
-      assert.isNotNull(index._lunrIndex, "lunr fts index NOT in internal property");
-      assert.isNotNull(index._getLunrIndex(options), "lunr fts index NOT created by internal method");
+      assert.isNotNull(index.documents, "mani index has documents collection");
+      assert.isNotNull(index._freetext, "mani index has lunr freetext");
+      assert.isNotNull(index._geo, "mani index has geo");
    })
 
 })
@@ -57,17 +58,21 @@ describe('index', function() {
 
    var index1 = mani({});
 
-   it("created without fts - empty options", function(){
-      assert.isNull(index1._lunrIndex, "_lunrIndex should be null");
-      assert.isNull(index1._getLunrIndex({}), "getLunrIndex method should return null with empty options object");
+   it("created - empty options", function(){
+      assert.isNotNull(index1, "mani index NOT created");
+      assert.isNotNull(index1.documents, "mani index has documents collection");
+      assert.isNotNull(index1._freetext, "mani index has lunr freetext");
+      assert.isNotNull(index1._geo, "mani index has geo");
    })
 
 
    var index2 = mani();
 
-   it("created without fts - no options", function(){
-      assert.isNull(index2._lunrIndex, "_lunrIndex should be null");
-      assert.isNull(index2._getLunrIndex(), "getLunrIndex method should return null with empty options object");
+   it("created - no options", function(){
+      assert.isNotNull(index2, "mani index NOT created");
+      assert.isNotNull(index2.documents, "mani index has documents collection");
+      assert.isNotNull(index2._freetext, "mani index has lunr freetext");
+      assert.isNotNull(index2._geo, "mani index has geo");
    })
 
 })
