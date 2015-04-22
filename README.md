@@ -18,7 +18,7 @@ Mani provides a document based search tool in javascript. It can be used in a br
 	* Nearby query/sort
 	* injects distance	
 * Facets
-* ~~Pageing~~
+* Pageing
 * ~~Persistent Storage~~
 * Works with complex JSON documents with child objects
    * Define property selections with JSON path
@@ -60,24 +60,6 @@ A code example of setting up a search index, loading 2 documents and search for 
      });
 ```
 
-### Facets
-A code example of returning facets from a document set.
-From the documents in a search result:
-```
-    var results = index.search({
-         text: 'promises', 
-         facets: {
-            'path': 'article.tags'
-         }
-      })
-```
-From all documents in a index:
-```
-    var results = index.facets({
-        'path': 'article.tags'
-      })
-```
-
 ### Geo
 A code example of querying and sorting documents using a geolocation.
 
@@ -108,6 +90,43 @@ Constructing the search:
          }
       })
 ```
+### Facets
+A code example of returning facets from a document set.
+From the documents in a search result:
+```
+    var results = index.search({
+         text: 'promises', 
+         facets: {
+            'path': 'article.tags'
+         }
+      })
+```
+From all documents in a index:
+```
+    var results = index.facets({
+        'path': 'article.tags'
+      })
+```
+
+### Paging
+A code example of returning results in pages set using `limit` and `startAt`
+
+```javascript
+var results = index.search({
+         text: 'promises', 
+         facets: {
+            'path': 'article.tags'
+         }
+        'limit': 20,
+	   	'startAt': 20
+      })
+```
+
+Properties used for paging:
+* `limit` limits the number of results returned has to 1 or greater.
+* `startAt` defines where mani starts returning results from within a result set.
+
+
 
 ### Built on top of
 This project stand on the shoulders of others:

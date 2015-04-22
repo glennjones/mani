@@ -87,7 +87,7 @@ Documents.prototype.count = function () {
 
 
 module.exports = Documents;
-},{"./utilities":6,"lodash":8}],2:[function(require,module,exports){
+},{"./utilities":7,"lodash":9}],2:[function(require,module,exports){
 var _			= require('lodash'),
 	utilities	= require('./utilities');
 
@@ -149,8 +149,9 @@ Facets.prototype.build = function(documents, options, results) {
 
 
 module.exports = Facets;
-},{"./utilities":6,"lodash":8}],3:[function(require,module,exports){
+},{"./utilities":7,"lodash":9}],3:[function(require,module,exports){
 var Lunr		= require('lunr'),
+	_			= require('lodash'),
 	utilities	= require('./utilities');
 
 
@@ -175,7 +176,12 @@ FreeText.prototype.search = function (options) {
 	}
 
 	// format [{"ref":"1","score":0.30815769789216485}]
-	return ftsResults; 
+	var ftsResults = ftsResults.map(function(item){ 
+	   item.ref = parseInt(item.ref,10);
+	   return item;
+	});
+
+	return _.sortByAll(ftsResults, ['score', 'ref']); 
 }
 
 
@@ -258,7 +264,7 @@ Documents.prototype.count = function () {
 
 
 module.exports = FreeText;
-},{"./utilities":6,"lunr":9}],4:[function(require,module,exports){
+},{"./utilities":7,"lodash":9,"lunr":10}],4:[function(require,module,exports){
 var _			= require('lodash'),
 	GeoLib		= require('geolib'),
 	utilities	= require('./utilities');
@@ -378,7 +384,7 @@ Geo.prototype.remove = function (doc) {
 
 
 module.exports = Geo;
-},{"./utilities":6,"geolib":7,"lodash":8}],5:[function(require,module,exports){
+},{"./utilities":7,"geolib":8,"lodash":9}],5:[function(require,module,exports){
 
 var Lunr		= require('lunr'),
 	GeoLib		= require('geolib'),
@@ -386,7 +392,8 @@ var Lunr		= require('lunr'),
 	Documents	= require('./documents'),
 	FreeText	= require('./freetext'),
 	Geo			= require('./geo'),
-	Facets		= require('./facets');
+	Facets		= require('./facets'),
+	Paging		= require('./paging');
 
 
 console.log(Lunr.version)
@@ -427,8 +434,19 @@ Mani.Index.prototype.search = function (options) {
 
 	// excute geo search
 	if(options.nearby){
-		resultSet  = this._geo.nearby( options, resultSet);
+		resultSet  = this._geo.nearby( options, resultSet );
 	}
+
+	// excute geo search
+	if(options.paging){
+		console.log(JSON.stringify(resultSet))
+		var pagingResults = Paging.page( options, resultSet );
+		resultSet = pagingResults.documents;
+		if(pagingResults.info){
+			out.paging = pagingResults.info
+		}
+	}
+
 
 	out.items = this.documents.getItemsFromResults( resultSet );
 
@@ -499,7 +517,93 @@ module.exports = Mani;
 
  
 
-},{"./documents":1,"./facets":2,"./freetext":3,"./geo":4,"./utilities":6,"geolib":7,"lunr":9}],6:[function(require,module,exports){
+},{"./documents":1,"./facets":2,"./freetext":3,"./geo":4,"./paging":6,"./utilities":7,"geolib":8,"lunr":10}],6:[function(require,module,exports){
+var _			= require('lodash'),
+	utilities	= require('./utilities');
+
+
+
+
+function page(options, documents){
+	this.options = (options)? options : {};
+
+	var out = {
+			'documents': documents
+		}
+
+	if(this.options.paging && Array.isArray(documents)){
+		out.info = {itemCount: _size(documents)};
+
+		if(this.options.paging.startAt){
+			var startAtNum = this.options.paging.startAt;
+			if(startAtNum < out.info.itemCount){
+				out.info.startAt = startAtNum
+				documents = _startAt(startAtNum, documents)
+			}
+		}
+
+		if(this.options.paging.limit){
+			var limitNum = this.options.paging.limit;
+			if(limitNum < documents.length){
+				out.info.limit = limitNum
+				documents = _limit(limitNum, documents)
+			}
+
+		}
+
+		// add pageNumber
+
+		out.documents = documents;
+	}
+
+	return out
+
+}
+
+
+function _startAt(num, documents){
+	if(_.isNumber(num) && num > 1 && Array.isArray(documents)){
+		num = parseInt(num, 10);
+		return documents.slice(num-1);
+	}else{
+		return [];
+	}
+}
+
+
+function _limit(num, documents){
+	if(_.isNumber(num) && Array.isArray(documents)){
+		num = parseInt(num, 10);
+		return documents.slice(0, num);
+	}else{
+		return [];
+	}
+}
+
+
+function _size(documents){
+	if(Array.isArray(documents)){
+		return documents.length;
+	}else{
+		return 0;
+	}
+}
+
+
+exports.page = page;
+exports._startAt = _startAt;
+exports._limit = _limit;
+exports._size = _size;
+
+
+
+/*
+http://docs.mongodb.org/manual/reference/method/cursor.skip/
+http://docs.mongodb.org/manual/reference/method/cursor.limit/
+http://docs.mongodb.org/manual/reference/method/cursor.size/
+*/
+
+},{"./utilities":7,"lodash":9}],7:[function(require,module,exports){
 
 
 
@@ -536,7 +640,7 @@ exports.reach = function (obj, chain, options) {
 
     return ref;
 };
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /*! geolib 2.0.14 by Manuel Bieh
 * Library to provide geo functions like distance calculation,
 * conversion of decimal coordinates to sexagesimal and vice versa, etc.
@@ -1687,7 +1791,7 @@ exports.reach = function (obj, chain, options) {
 	}
 
 }(this));
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -13494,7 +13598,7 @@ exports.reach = function (obj, chain, options) {
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 /**
  * lunr - http://lunrjs.com - A bit like Solr, but much smaller and not as bright - 0.5.8
  * Copyright (C) 2015 Oliver Nightingale
