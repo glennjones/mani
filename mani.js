@@ -31,26 +31,30 @@ Documents.prototype.getItemById = function ( id ) {
 // return items based on fts results
 Documents.prototype.getItemsFromResults = function ( results ){
 	var out = [],
-		i = results.length,
+		i = 0,
 		x = 0;
-
-	while (x < i) {
-		var id = parseInt(results[x].ref,10);
-		var item = this.getItemById( id );
-
-		// add free text score
-		if(results[x].score !== undefined){
-			item.score = results[x].score;	
-		}
-
-		// add geo distance
-		if(results[x].distance !== undefined){
-			item.distance = results[x].distance;	
-		}
 		
-    	out.push(item);
-	    x++;
+	if(Array.isArray(results)){
+		i = results.length;
+		while (x < i) {
+			var id = parseInt(results[x].ref,10);
+			var item = this.getItemById( id );
+
+			// add free text score
+			if(results[x].score !== undefined){
+				item.score = results[x].score;	
+			}
+
+			// add geo distance
+			if(results[x].distance !== undefined){
+				item.distance = results[x].distance;	
+			}
+			
+	    	out.push(item);
+		    x++;
+		}
 	}
+
 	return out;
 }
 
@@ -87,7 +91,7 @@ Documents.prototype.count = function () {
 
 
 module.exports = Documents;
-},{"./utilities":7,"lodash":9}],2:[function(require,module,exports){
+},{"./utilities":8,"lodash":10}],2:[function(require,module,exports){
 var _			= require('lodash'),
 	utilities	= require('./utilities');
 
@@ -149,7 +153,7 @@ Facets.prototype.build = function(documents, options, results) {
 
 
 module.exports = Facets;
-},{"./utilities":7,"lodash":9}],3:[function(require,module,exports){
+},{"./utilities":8,"lodash":10}],3:[function(require,module,exports){
 var Lunr		= require('lunr'),
 	_			= require('lodash'),
 	utilities	= require('./utilities');
@@ -264,7 +268,7 @@ Documents.prototype.count = function () {
 
 
 module.exports = FreeText;
-},{"./utilities":7,"lodash":9,"lunr":10}],4:[function(require,module,exports){
+},{"./utilities":8,"lodash":10,"lunr":11}],4:[function(require,module,exports){
 var _			= require('lodash'),
 	GeoLib		= require('geolib'),
 	utilities	= require('./utilities');
@@ -403,13 +407,14 @@ Geo.prototype.remove = function (doc) {
 
 
 module.exports = Geo;
-},{"./utilities":7,"geolib":8,"lodash":9}],5:[function(require,module,exports){
+},{"./utilities":8,"geolib":9,"lodash":10}],5:[function(require,module,exports){
 
 var Lunr		= require('lunr'),
 	GeoLib		= require('geolib'),
 	Utilities	= require('./utilities'),
 	Documents	= require('./documents'),
 	FreeText	= require('./freetext'),
+	Match		= require('./match'),
 	Geo			= require('./geo'),
 	Facets		= require('./facets'),
 	Paging		= require('./paging');
@@ -429,6 +434,7 @@ Mani.Index = function (options) {
 
 	this.documents = new Documents(this.options);
     this._freetext = new FreeText(this.options);
+    this._match = new Match(this.options);
     this._geo = new Geo(this.options);
     //this._facets = new Facets(options);
 
@@ -454,6 +460,11 @@ Mani.Index.prototype.search = function (options) {
 		resultSet  = this._freetext.search( options, resultSet );
 	}
 
+	// excute query match
+	if(options.query){
+		resultSet  = this._match.search( options, this.documents, resultSet );
+	}
+
 	// excute geo nearby search
 	if(options.nearby){
 		resultSet  = this._geo.nearby( options, resultSet );
@@ -467,7 +478,6 @@ Mani.Index.prototype.search = function (options) {
 			out.paging = pagingResults.info
 		}
 	}
-
 
 	out.items = this.documents.getItemsFromResults( resultSet );
 
@@ -538,7 +548,87 @@ module.exports = Mani;
 
  
 
-},{"./documents":1,"./facets":2,"./freetext":3,"./geo":4,"./paging":6,"./utilities":7,"geolib":8,"lunr":10}],6:[function(require,module,exports){
+},{"./documents":1,"./facets":2,"./freetext":3,"./geo":4,"./match":6,"./paging":7,"./utilities":8,"geolib":9,"lunr":11}],6:[function(require,module,exports){
+var _			= require('lodash'),
+	utilities	= require('./utilities');
+
+
+// create a documents collection that encapsules lunr interface
+Match = function( options ){
+	this.options = (options)? options : {};
+
+};
+
+
+Match.prototype.search = function (options, documents, subSet) {
+	var self = this,
+		items = [];
+
+	if(Array.isArray(subSet)){
+		items = documents.getItemsFromResults(subSet);
+	}else{
+		items = documents.items;
+	}	
+
+	if(options.query){
+		items = items.filter(function(item){
+			return self._isValidMatch(item, options.query); 
+		})
+	}
+
+	return items.map(function(item){
+		return {'ref':item.id}; 
+	})
+}
+
+
+Match.prototype._isValidMatch = function (item, query) {
+	var isValid = true;
+
+	//console.log(JSON.stringify(query) );
+
+	// loop query items
+	for (var queryItem in query) {
+	  if( query.hasOwnProperty( queryItem ) ) {
+
+	    //console.log(queryItem + " = " + JSON.stringify(query[queryItem]) );
+	    var prop = utilities.reach(item, queryItem)
+
+	    // if its a string/number/bool etc plain match
+	    if(_.isObject(query[queryItem]) === false){
+
+			// found property for match
+		    if(prop !== undefined){
+		    	// turn into single value
+		    	if(Array.isArray(prop)){
+		    		prop = prop[0]
+		    	}
+		   
+
+		    	// if its not a match filter out item
+		    	if(prop !== query[queryItem]){
+					isValid = false;
+		    	}
+		    }
+
+	    }
+
+
+
+	  } 
+	}
+
+	return isValid;
+}
+
+
+
+
+
+module.exports = Match
+
+
+},{"./utilities":8,"lodash":10}],7:[function(require,module,exports){
 var _			= require('lodash'),
 	utilities	= require('./utilities');
 
@@ -629,7 +719,7 @@ http://docs.mongodb.org/manual/reference/method/cursor.limit/
 http://docs.mongodb.org/manual/reference/method/cursor.size/
 */
 
-},{"./utilities":7,"lodash":9}],7:[function(require,module,exports){
+},{"./utilities":8,"lodash":10}],8:[function(require,module,exports){
 
 
 
@@ -666,7 +756,7 @@ exports.reach = function (obj, chain, options) {
 
     return ref;
 };
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 /*! geolib 2.0.14 by Manuel Bieh
 * Library to provide geo functions like distance calculation,
 * conversion of decimal coordinates to sexagesimal and vice versa, etc.
@@ -1817,7 +1907,7 @@ exports.reach = function (obj, chain, options) {
 	}
 
 }(this));
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -13624,7 +13714,7 @@ exports.reach = function (obj, chain, options) {
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 /**
  * lunr - http://lunrjs.com - A bit like Solr, but much smaller and not as bright - 0.5.8
  * Copyright (C) 2015 Oliver Nightingale

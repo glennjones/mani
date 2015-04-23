@@ -1,9 +1,9 @@
 # Mani
 
-# IN DEVELOPMENT - NOT STABLE
+# IN DEVELOPMENT - API NOT STABLE
 
 ###  Pure javascript search - browser and node.js
-Mani provides a document based search tool in javascript. It can be used in a browser or with node.js/io.js Its a very simplistic version of the type of features you get from [Solr](http://lucene.apache.org/solr/).
+Mani provides a document based search tool in javascript. It can be used in a browser or with node.js/io.js Its a very simplistic version of the type of features you get from [Solr](http://lucene.apache.org/solr/). It's build for small sets of data i.e. its often uses arrays rather than btrees etc.
 
 
 
@@ -12,8 +12,8 @@ Mani provides a document based search tool in javascript. It can be used in a br
 * Free text search
 	* field boast
 	* injects match score
-* ~~Query~~
-	* ~~Simple queries based on Mongodb syntax~~
+* Query
+	* Simple property queries ~~based on Mongodb syntax~~
 * GEO search
 	* Nearby query/sort
 	* injects distance	
@@ -60,16 +60,37 @@ A code example of setting up a search index, loading 2 documents and search for 
      });
 ```
 
-### Geo
-A code example of querying and sorting documents using a geolocation.
+### Query
+The current code does simple matches on the content of properties in your docuements
 
-#### Nearby
+Search with single query:
+```javascript
+    var results = index.search({
+        'query': {
+         	{'article.tags','javascript'}
+     	} 
+    })
+```
+
+Search with two queries:
+```javascript
+    var results = index.search({
+        'query': {
+        	{'article.status','published'}
+         	{'article.tags','javascript'}
+     	} 
+    })
+```
+
+
+### Nearby
+A code example of querying and sorting documents using a geolocation.
 Adding latitude and longitude paths to the index schema:
 ```javascript
 	var options = {
 	   'text': [
-	      {'path': 'title', 'boost': 20},
-	      {'path': 'article.body'}
+	      {'path': 'name', 'boost': 20},
+	      {'path': 'tag'}
 	   ],
 	   'geo': {
 	        'point': {
@@ -78,11 +99,12 @@ Adding latitude and longitude paths to the index schema:
 	        }
 	   }
 	}
+	var index = new Mani(options)
 ```
-Constructing the search:
+Nearby search join with freetext search for term 'pub':
 ```javascript
     var results = index.search({
-         'text': 'promises', 
+         'text': 'pub', 
          'nearby': {
             'latitude': 52.516272, 
             'longitude': 13.377722,
@@ -90,6 +112,10 @@ Constructing the search:
          }
       })
 ```
+Properties used for nearby:
+* `offset` exclude results that are in a radius of the offset - set in meters.
+
+
 ### Facets
 A code example of returning facets from a document set.
 From the documents in a search result:
