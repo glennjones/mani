@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "geolib": "2.0.x",
+    "localforage": "1.2.x",
     "lodash": "3.6.x",
     "lunr": "0.5.8"
   },

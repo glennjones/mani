@@ -5,7 +5,6 @@ Mocha test for: match
 var   Chai     		= require('chai'),
       assert   		= Chai.assert,
       Match   	      = require('../lib/match.js'),
-      Documents      = require('../lib/documents.js'),
       Mani     		= require('../lib/index.js');
 
 

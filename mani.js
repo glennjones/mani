@@ -4,11 +4,12 @@ var _			= require('lodash'),
 	
 
 // create a documents collection that encapsules lunr interface
-Documents = function( options ){
+Documents = function( options, eventEmitter ){
 	this.options = (options)? options : {};
 	this.items = [];
-	this._fields = [];
 	this._idCount = 0;
+
+	this.eventEmitter = (eventEmitter)? this.eventEmitter : null;
 };
 
 
@@ -59,6 +60,14 @@ Documents.prototype.getItemsFromResults = function ( results ){
 }
 
 
+// remove all documents.items
+Documents.prototype.removeAll = function () {
+	this.items = [];
+	this._idCount = 0;
+}
+
+
+
 // add document to collection
 Documents.prototype.add = function (doc) {
 	doc.id = this._idCount;
@@ -91,13 +100,15 @@ Documents.prototype.count = function () {
 
 
 module.exports = Documents;
-},{"./utilities":8,"lodash":10}],2:[function(require,module,exports){
+},{"./utilities":9,"lodash":11}],2:[function(require,module,exports){
 var _			= require('lodash'),
 	utilities	= require('./utilities');
 
 
-Facets = function(){
+Facets = function(eventEmitter){
 	this.items = [];
+
+	this.eventEmitter = (eventEmitter)? this.eventEmitter : null;
 };
 
 
@@ -153,14 +164,14 @@ Facets.prototype.build = function(documents, options, results) {
 
 
 module.exports = Facets;
-},{"./utilities":8,"lodash":10}],3:[function(require,module,exports){
+},{"./utilities":9,"lodash":11}],3:[function(require,module,exports){
 var Lunr		= require('lunr'),
 	_			= require('lodash'),
 	utilities	= require('./utilities');
 
 
 // create a documents collection that encapsules lunr interface
-FreeText = function( options ){
+FreeText = function( options, eventEmitter ){
 	this._lunrIndex = null;
 	this.options = {};
 
@@ -168,6 +179,8 @@ FreeText = function( options ){
 		this.options.text = options.text
 		this._lunrIndex = this._getLunrIndex(this.options);
 	}
+
+	this.eventEmitter = (eventEmitter)? this.eventEmitter : null;
 };
 
 
@@ -232,6 +245,12 @@ FreeText.prototype._flatten = function ( item ) {
 
 
 // add document to collection
+FreeText.prototype.removeAll = function () {
+	this._lunrIndex = null;
+}
+
+
+// add document to collection
 FreeText.prototype.add = function (doc) {
 	if(this._lunrIndex){
 		// flatten the object structure based on options.fields;
@@ -268,19 +287,21 @@ Documents.prototype.count = function () {
 
 
 module.exports = FreeText;
-},{"./utilities":8,"lodash":10,"lunr":11}],4:[function(require,module,exports){
+},{"./utilities":9,"lodash":11,"lunr":12}],4:[function(require,module,exports){
 var _			= require('lodash'),
 	GeoLib		= require('geolib'),
 	utilities	= require('./utilities');
 
 
 // 
-Geo = function( options ){
+Geo = function( options, eventEmitter ){
 	this.items = [];
 	this.options = {};
 	if(options.geo){
 		this.options = options;
 	}
+
+	this.eventEmitter = (eventEmitter)? this.eventEmitter : null;
 };
 
 
@@ -387,6 +408,13 @@ Geo.prototype._getDocumentSubSet = function ( subSet ) {
 }
 
 
+// remove all documents.items
+Geo.prototype.removeAll = function () {
+	this.items = [];
+}
+
+
+
 // add document to collection
 Geo.prototype.add = function (doc) {
 	this.items.push(this._flatten(doc));
@@ -407,7 +435,7 @@ Geo.prototype.remove = function (doc) {
 
 
 module.exports = Geo;
-},{"./utilities":8,"geolib":9,"lodash":10}],5:[function(require,module,exports){
+},{"./utilities":9,"geolib":10,"lodash":11}],5:[function(require,module,exports){
 
 var Lunr		= require('lunr'),
 	GeoLib		= require('geolib'),
@@ -417,10 +445,11 @@ var Lunr		= require('lunr'),
 	Match		= require('./match'),
 	Geo			= require('./geo'),
 	Facets		= require('./facets'),
-	Paging		= require('./paging');
+	Paging		= require('./paging'),
+	Persist		= require('./persist');
 
 
-console.log(Lunr.version)
+
 
 function Mani(options) {
     this.version = '0.0.2';
@@ -431,13 +460,19 @@ function Mani(options) {
 
 Mani.Index = function (options) {
 	this.options = (options)? options : {};
+	this.options.name = (options.name)? options.name : 'Mani';
 
-	this.documents = new Documents(this.options);
-    this._freetext = new FreeText(this.options);
-    this._match = new Match(this.options);
-    this._geo = new Geo(this.options);
+	this.eventEmitter =  new Lunr.EventEmitter
+
+	this.documents = new Documents(this.options, this.eventEmitter);
+    this._freetext = new FreeText(this.options, this.eventEmitter);
+    this._match = new Match(this.options, this.eventEmitter);
+    this._geo = new Geo(this.options, this.eventEmitter);
+    //this._persist = new Persist(this.options);
     //this._facets = new Facets(options);
 
+    
+    this.eventEmitter.emit('configured', options, this);
 }
 
 
@@ -509,13 +544,48 @@ Mani.Index.prototype.add = function (doc) {
 			self._freetext.add(item);
 	    	self._geo.add(item);
 		})
+		this.eventEmitter.emit('add', doc, this);
 		return doc;
 	}else{
 		this.documents.add(doc);
 		this._freetext.add(doc);
     	this._geo.add(doc);
+		this.eventEmitter.emit('add', doc, this);
 		return doc;
 	}
+}
+
+
+/*Mani.Index.prototype.save = function (callback) {
+	this._persist.saveDocuments(this.documents.items, function(err){
+		callback(err, this.documents.items.length);
+	})
+}
+
+
+Mani.Index.prototype.load = function (callback) {
+	var self = this;
+	this._persist.loadDocuments(function(err, docs){
+		if(!err){
+			self.add(docs);
+		}
+		callback(err, self.documents.items.length);
+	})
+}*/
+
+
+Mani.Index.prototype.removeAll = function (callback) {
+	this._persist.clearDocuments(function(err){
+		var itemsRemoved = this.documents.items.length;
+
+		// remove the index's 
+		this.documents.removeAll();
+		this._freetext.removeAll();
+		this._geo.removeAll();
+
+		this.eventEmitter.emit('removeAll', itemsRemoved, this);
+		callback(err, itemsRemoved);
+	})
 }
 
 
@@ -537,6 +607,34 @@ Mani.Index.prototype.toJSON = function () {
 
 
 
+/**
+ * Bind a handler to events being emitted by the index.
+ *
+ * The handler can be bound to many events at the same time.
+ *
+ * @param {String} [eventName] The name(s) of events to bind the function to.
+ * @param {Function} handler The serialised set to load.
+ * @memberOf Index
+ */
+Mani.Index.prototype.on = function () {
+  var args = Array.prototype.slice.call(arguments)
+  return this.eventEmitter.addListener.apply(this.eventEmitter, args)
+}
+
+/**
+ * Removes a handler from an event being emitted by the index.
+ *
+ * @param {String} eventName The name of events to remove the function from.
+ * @param {Function} handler The serialised set to load.
+ * @memberOf Index
+ */
+Mani.Index.prototype.off = function (name, fn) {
+  return this.eventEmitter.removeListener(name, fn)
+}
+
+
+
+
 module.exports = Mani;
 
 
@@ -548,15 +646,16 @@ module.exports = Mani;
 
  
 
-},{"./documents":1,"./facets":2,"./freetext":3,"./geo":4,"./match":6,"./paging":7,"./utilities":8,"geolib":9,"lunr":11}],6:[function(require,module,exports){
+},{"./documents":1,"./facets":2,"./freetext":3,"./geo":4,"./match":6,"./paging":7,"./persist":8,"./utilities":9,"geolib":10,"lunr":12}],6:[function(require,module,exports){
 var _			= require('lodash'),
 	utilities	= require('./utilities');
 
 
 // create a documents collection that encapsules lunr interface
-Match = function( options ){
+Match = function( options, eventEmitter ){
 	this.options = (options)? options : {};
-
+	
+	this.eventEmitter = (eventEmitter)? this.eventEmitter : null;
 };
 
 
@@ -628,7 +727,7 @@ Match.prototype._isValidMatch = function (item, query) {
 module.exports = Match
 
 
-},{"./utilities":8,"lodash":10}],7:[function(require,module,exports){
+},{"./utilities":9,"lodash":11}],7:[function(require,module,exports){
 var _			= require('lodash'),
 	utilities	= require('./utilities');
 
@@ -719,7 +818,108 @@ http://docs.mongodb.org/manual/reference/method/cursor.limit/
 http://docs.mongodb.org/manual/reference/method/cursor.size/
 */
 
-},{"./utilities":8,"lodash":10}],8:[function(require,module,exports){
+},{"./utilities":9,"lodash":11}],8:[function(require,module,exports){
+
+
+// TODO write client-side tests for persist module
+
+/*var localforage			= require('localforage');
+
+
+
+// create a documents collection that encapsules lunr interface
+Persist = function( index, options, callback ){
+
+	var self = this;
+	this.options = (options)? options : {};
+
+	if(!this.options.name ){
+		this.options.name = 'mani';
+	}
+	if(!this.options.auto ){
+		this.options.auto = false;
+	}
+
+	this.index = index;
+	localforage.config({
+    	'name': self.options.name + '-collection'
+	});
+
+	// capture all event and if auto true save changes
+	this.index.on('add', 'remove', 'update', (function () {
+		if(self.options.auto === true){
+			//self.save(function(){})
+		}
+	}));
+
+
+	// if auto is true at start load current items into index
+	if(this.options.auto === true){
+		this.load(function(err, items){
+			if(callback){
+				callback(err, items)
+			}
+		});
+	}else{
+		if(callback){
+			callback(err, []);
+		}
+	}
+
+};
+
+
+Persist.prototype.save = function (callback) {
+	var name = (this.options.name)? this.options.name + '-documents' : 'documents';
+
+	localforage.setItem(name, this.index.documents.items).then(function(value) {
+	    console.log('document collection was stored: ' + value.length);
+	    callback(null, value); 
+	}, function(err) {
+	    console.error('document collection store errored: ' +  error);
+	    callback(err, null) 
+	});
+
+}
+
+
+Persist.prototype.load = function (callback) {
+	var name = (this.options.name)? this.options.name + '-documents' : 'documents';
+
+	localforage.getItem(name).then(function(value) {
+	    console.log('document collection was restored: ' + value.length);
+	    index.add(value);
+	    callback(null, value) 
+	}, function(err) {
+	    console.error('document collection restored errored: ' +  error);
+	    callback(err, null) 
+	});
+
+}
+
+
+Persist.prototype.removeAll = function (callback) {
+	var name = (this.options.name)? this.options.name + '-documents' : 'documents';
+
+	localforage.removeItem(name).then(function(value) {
+	    console.log('document collection was removed: ' + value.length)
+	    callback(null, value) 
+	}, function(err) {
+	    console.error('document collection remove errored: ' +  error);
+	    callback(err, null) 
+	});
+
+}
+
+
+
+
+
+
+
+module.exports = Persist
+*/
+},{}],9:[function(require,module,exports){
 
 
 
@@ -756,7 +956,7 @@ exports.reach = function (obj, chain, options) {
 
     return ref;
 };
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 /*! geolib 2.0.14 by Manuel Bieh
 * Library to provide geo functions like distance calculation,
 * conversion of decimal coordinates to sexagesimal and vice versa, etc.
@@ -1907,7 +2107,7 @@ exports.reach = function (obj, chain, options) {
 	}
 
 }(this));
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -13714,7 +13914,7 @@ exports.reach = function (obj, chain, options) {
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /**
  * lunr - http://lunrjs.com - A bit like Solr, but much smaller and not as bright - 0.5.8
  * Copyright (C) 2015 Oliver Nightingale

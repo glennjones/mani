@@ -10,16 +10,16 @@ Mani provides a document based search tool in javascript. It can be used in a br
 ### Features
 
 * Free text search
-	* field boast
-	* injects match score
+  * field boast
+  * injects match score
 * Query
-	* Simple property queries ~~based on Mongodb syntax~~
+  * Simple property queries ~~based on Mongodb syntax~~
 * GEO search
-	* Nearby query/sort
-	* injects distance	
+  * Nearby query/sort
+  * injects distance  
 * Facets
 * Pageing
-* ~~Persistent Storage~~
+* Persistent browser storage
 * Works with complex JSON documents with child objects
    * Define property selections with JSON path
 
@@ -31,14 +31,15 @@ Mani provides a document based search tool in javascript. It can be used in a br
 A code example of setting up a search index, loading 2 documents and search for the text 'promises'.
 ```javascript
 
-	var options = {
-	   'text': [
-	      {'path': 'title', 'boost': 20},
-	      {'path': 'article.body'}
-	   ]
-	}
+  var options = {
+     'name': 'blog-post',
+     'text': [
+        {'path': 'title', 'boost': 20},
+        {'path': 'article.body'}
+     ]
+  }
 
-	var index = new Mani(options);
+  var index = new Mani(options);
 
     index.add({
       title: 'Are promises better than callback',
@@ -67,8 +68,8 @@ Search with single query:
 ```javascript
     var results = index.search({
         'query': {
-         	{'article.tags','javascript'}
-     	} 
+          {'article.tags','javascript'}
+      } 
     })
 ```
 
@@ -76,9 +77,9 @@ Search with two queries:
 ```javascript
     var results = index.search({
         'query': {
-        	{'article.status','published'}
-         	{'article.tags','javascript'}
-     	} 
+          {'article.published',true}
+          {'article.tags','javascript'}
+      } 
     })
 ```
 
@@ -87,19 +88,19 @@ Search with two queries:
 A code example of querying and sorting documents using a geolocation.
 Adding latitude and longitude paths to the index schema:
 ```javascript
-	var options = {
-	   'text': [
-	      {'path': 'name', 'boost': 20},
-	      {'path': 'tag'}
-	   ],
-	   'geo': {
-	        'point': {
-	            'latitudePath': 'location.latitude', 
+  var options = {
+     'text': [
+        {'path': 'name', 'boost': 20},
+        {'path': 'tag'}
+     ],
+     'geo': {
+          'point': {
+              'latitudePath': 'location.latitude', 
                 'longitudePath': 'location.longitude',
-	        }
-	   }
-	}
-	var index = new Mani(options)
+          }
+     }
+  }
+  var index = new Mani(options)
 ```
 Nearby search join with freetext search for term 'pub':
 ```javascript
@@ -144,7 +145,7 @@ var results = index.search({
             'path': 'article.tags'
          }
         'limit': 20,
-	   	'startAt': 20
+      'startAt': 20
       })
 ```
 
@@ -153,21 +154,75 @@ Properties used for paging:
 * `startAt` defines where mani starts returning results from within a result set.
 
 
+### Browser usage
+To use Mani in a browser simple add the script file
+```html
+  <script src="mani.js"></script>
+
+```
+
+### Persistent browser storage
+Within browsers Mani can persist data inbetween browser session. Which allows you to build offline user expereiences. You need to load both the `mani.js` and `mani-persist.js` scripts into the browser.
+```html
+  <script src="mani.js"></script>
+  <script src="mani-persist.js"></script>
+```
+
+The `Persist` object options has a property `auto` if set to `true` the data in Mani will be inbetween session.
+
+```javascript
+    var index = new Mani(options);
+  var persist = new Persist(index, {
+          name: 'places', 
+          auto: true
+      }, function(err, items){
+      // add action such as search
+  });
+```
+Properties used for persist:
+* `name` this can be showed to user if storage limits are reached.
+* `auto` automaticlly persist data between sessions.
+
+##### Persist `save` and `load`
+
+The `save` and `load` functions for manually storing data have callback to which are call once the data is either stored or restored. You should make sure you give an index a name before using this feature.
+
+The save function persist the data into the browser 
+```javascript
+    index.save(function(err, items){
+        console.log( err, items );
+    })
+```
+
+The load function restores the data back into your index
+```javascript
+    index.load(function(err, items){
+        console.log( err, items );
+    })
+```
+
 
 ### Built on top of
 This project stand on the shoulders of others:
 * [lunrjs](http://lunrjs.com/) - free text search   
-* [geolib](https://github.com/manuelbieh/Geolib) - nearby search    
+* [geolib](https://github.com/manuelbieh/Geolib) - nearby search
+* [localForage](https://github.com/mozilla/localForage) - data persistance  
 
 ### The name "Mani"
 In viking mythology **Mani** is the man who drives the chariot that carries the Moon across the sky. I thought this would be a good name for a wrapper of [lunrjs](http://lunrjs.com/).
+ 
+ 
+### Build
+Mani is build using [NPM](https://www.npmjs.com/) modules and [browerify](http://browserify.org/), to make devlopment a little easier I use [watchify](https://github.com/substack/watchify) to compile the js files as a I code. The two watchify commands for the project are: 
+ 
+* `watchify lib/index.js -s Mani -o mani.js`
+* `watchify lib/persist.js -s Persist -o mani-persist.js`
  
 
 ### Tests
 The project has a number integration and unit tests. To run the test within the project type the following command.
 
     $ mocka --reporter list
-
 
 ### Support or Contact
 Having trouble, please raise an issue at: [https://github.com/glennjones/mani/issues](https://github.com/glennjones/mani/issues)
