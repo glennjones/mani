@@ -3,7 +3,7 @@
 # IN DEVELOPMENT - API NOT STABLE
 
 ###  Pure javascript search - browser and node.js
-Mani provides a document based search tool in javascript. It can be used in a browser or with node.js/io.js Its a very simplistic version of the type of features you get from [Solr](http://lucene.apache.org/solr/). It's build for small sets of data i.e. its often uses arrays rather than btrees etc.
+Mani provides a document based search tool in javascript. It can be used in a browser or with node.js/io.js Its a very simplistic version of the type of features you get from [Solr](http://lucene.apache.org/solr/). It's build for small sets of data i.e. a few hundred/thousand items.
 
 
 
@@ -20,6 +20,7 @@ Mani provides a document based search tool in javascript. It can be used in a br
 * Facets
 * Pageing
 * Persistent browser storage
+* Serialize data and indexs to and from a JSON file
 * Works with complex JSON documents with child objects
    * Define property selections with JSON path
 
@@ -200,6 +201,24 @@ The load function restores the data back into your index
         console.log( err, items );
     })
 ```
+
+### Serialize data and indexs to and from a JSON file
+You can Serialize data and Mani indexs into a simple to use and store JSON file. This is useful for static site generation or where the data will not be updated once it sent to client. 
+
+To JSON
+```javascript
+    var index = new Mani(options);
+    index.add(...);
+    var json = JSON.stringify( index.toJSON() );
+```
+
+From JSON
+```javascript
+    var index = new Mani();
+    index.fromJSON( JSON.parse(indexJSON) );
+```
+
+
 
 
 ### Built on top of

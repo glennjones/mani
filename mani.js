@@ -466,26 +466,29 @@ var Lunr		= require('lunr'),
 
 
 function Mani(options) {
-    this.version = '0.0.2';
+    
  	return new Mani.Index(options);
 }
 
+Mani.version = '0.0.2';
 
 
 Mani.Index = function (options) {
+	this._configure(options);
+}
+
+
+Mani.Index.prototype._configure = function (options) {
+	this.version = Mani.version;
+
 	this.options = (options)? options : {};
-	this.options.name = (options.name)? options.name : 'Mani';
+	this.options.name = (this.name)? this.name : 'Mani';
 
 	this.eventEmitter =  new Lunr.EventEmitter
-
 	this.documents = new Documents(this.options, this.eventEmitter);
     this._freetext = new FreeText(this.options, this.eventEmitter);
     this._match = new Match(this.options, this.eventEmitter);
     this._geo = new Geo(this.options, this.eventEmitter);
-    //this._persist = new Persist(this.options);
-    //this._facets = new Facets(options);
-
-    
     this.eventEmitter.emit('configured', options, this);
 }
 
@@ -654,6 +657,48 @@ Mani.Index.prototype.on = function () {
 Mani.Index.prototype.off = function (name, fn) {
   return this.eventEmitter.removeListener(name, fn)
 }
+
+
+
+// save index to serialized JSON
+// includes options and the schema element of fts index
+Mani.Index.prototype.toJSON = function () {
+
+  // save full docuemnts
+  var pack = {
+  	version: this.version,
+  	options: this.options,
+    items: this.documents.items
+  }
+  // save free text index dump from lunr
+  if(this._freetext._lunrIndex){
+    pack.ftsIndex = this._freetext.toJSON()
+  }
+
+  return pack;	
+}
+
+
+// load index from serialized JSON
+// includes options and the schema element of fts index
+Mani.Index.prototype.fromJSON = function ( json ) {
+
+	// configure with stored options
+	if(json.options){
+		this._configure(json.options);
+	}
+
+    // load free text index dump into lunr
+    if(this._freetext 
+      	&& this._freetext._lunrIndex 
+      	&& json.ftsIndex){
+      	this._freetext.fromJSON(json.ftsIndex)
+    }
+
+    // load full documents
+    this.add(json.items, {ftsIndex: false});
+}
+
 
 
 
@@ -873,7 +918,6 @@ Persist = function( index, options, callback ){
     }
   }));
 
-
   // if auto is true at start load current items into index
   if(this.options.auto === true){
     this.load(function(err, items){
@@ -886,69 +930,40 @@ Persist = function( index, options, callback ){
       callback(null, []);
     }
   }
-
 };
 
 
 Persist.prototype.save = function (callback) {
-  var name = (this.options.name)? this.options.name + '-documents' : 'documents';
+  	var name = this._getName();
 
-  // save full docuemnts
-  var pack = {
-    items: this.index.documents.items
-  }
-  // save free text index dump from lunr
-  if(this.index._freetext._lunrIndex){
-    pack.ftsIndex = this.index._freetext.toJSON()
-  }
-
-  localforage.setItem(name, pack).then(function(value) {
-      console.log('document collection was stored: ' + value.length);
-      callback(null, value); 
-  }, function(err) {
-      console.error('document collection store errored: ' +  error);
-      callback(err, null) 
-  });
-
+  	localforage.setItem(name, this.toJSON()).then(function(value) {
+      	console.log('document collection was stored: ' + value.length);
+      	callback(null, value); 
+  	}, function(err) {
+      	console.error('document collection store errored: ' +  error);
+      	callback(err, null) 
+  	});
 }
 
 
 Persist.prototype.load = function (callback) {
-  var self = this,
-    name = (this.options.name)? this.options.name + '-documents' : 'documents'
+  	var self = this,
+		name = this._getName();
 
-
-
-  localforage.getItem(name).then(function(pack) {
-    console.log('document collection was restored: ' + pack.items.length);
-
-    // load free text index dump into lunr
-    if(self.index._freetext 
-      && self.index._freetext._lunrIndex 
-      && pack.ftsIndex){
-
-    	console.log(JSON.stringify(pack.ftsIndex))
-      self.index._freetext.fromJSON(pack.ftsIndex)
-    }
-    // load full documents
-    index.add(pack.items, {ftsIndex: false});
-
-
-    callback(null, pack.items) 
-  }, function(err) {
-      console.error('document collection restored errored: ' +  error);
-      callback(err, null) 
-  });
-
-
-
+  	localforage.getItem(name).then(function(pack) {
+    	console.log('document collection was restored: ' + pack.items.length);
+    	self.fromJSON(pack);
+    	callback(null, pack.items) 
+  	}, function(err) {
+      	console.error('document collection restored errored: ' +  error);
+      	callback(err, null) 
+  	});
 }
 
 
 
-
 Persist.prototype.removeAll = function (callback) {
-  var name = (this.options.name)? this.options.name + '-documents' : 'documents';
+  var name = this._getName();
 
   localforage.removeItem(name).then(function() {
       console.log('document collection was removed')
@@ -959,6 +974,22 @@ Persist.prototype.removeAll = function (callback) {
   });
 
 }
+
+
+Persist.prototype.toJSON = function () {
+  return this.index.toJSON();
+}
+
+
+Persist.prototype.fromJSON = function ( json ) {
+    this.index.fromJSON( json );
+}
+
+Persist.prototype._getName = function () {
+	return (this.options.name)? this.options.name + '-documents' : 'documents';
+}
+
+
 
 module.exports = Persist;
 },{"localforage":17}],9:[function(require,module,exports){
