@@ -250,6 +250,20 @@ FreeText.prototype.removeAll = function () {
 }
 
 
+// save index to serialized JSON
+// includes the schema element of index
+FreeText.prototype.toJSON = function () {
+	return this._lunrIndex.toJSON();
+}
+
+
+// load index from serialized JSON
+// includes the schema element of index
+FreeText.prototype.fromJSON = function ( json ) {
+	this._lunrIndex = Lunr.Index.load(json);
+}
+
+
 // add document to collection
 FreeText.prototype.add = function (doc) {
 	if(this._lunrIndex){
@@ -536,22 +550,31 @@ Mani.Index.prototype.facets = function (options) {
 }
 
 
-Mani.Index.prototype.add = function (doc) {
-	if(Array.isArray(doc)){
+Mani.Index.prototype.add = function (doc, options) {
+	options = (options)? options : {};
+
+	if(!options.ftsIndex){
+		options.ftsIndex = true;
+	}
+
+	if(doc){
+		if(Array.isArray(doc) === false){
+			doc = [doc];
+		}
+
 		var self = this;
 		doc.forEach(function(item) {
 			self.documents.add(item);
-			self._freetext.add(item);
+			if(options.ftsIndex === true){
+				self._freetext.add(item);
+			}
 	    	self._geo.add(item);
 		})
 		this.eventEmitter.emit('add', doc, this);
 		return doc;
 	}else{
-		this.documents.add(doc);
-		this._freetext.add(doc);
-    	this._geo.add(doc);
-		this.eventEmitter.emit('add', doc, this);
-		return doc;
+		this.eventEmitter.emit('add', null, this);
+		return null;
 	}
 }
 
@@ -820,105 +843,124 @@ http://docs.mongodb.org/manual/reference/method/cursor.size/
 
 },{"./utilities":9,"lodash":19}],8:[function(require,module,exports){
 
-
 // TODO write client-side tests for persist module
 
-var localforage			= require('localforage');
-
+var localforage     = require('localforage');
 
 
 // create a documents collection that encapsules lunr interface
 Persist = function( index, options, callback ){
 
-	var self = this;
-	this.options = (options)? options : {};
+  var self = this;
+  this.options = (options)? options : {};
 
-	if(!this.options.name ){
-		this.options.name = 'mani';
-	}
-	if(!this.options.auto ){
-		this.options.auto = false;
-	}
+  if(!this.options.name ){
+    this.options.name = 'mani';
+  }
+  if(!this.options.auto ){
+    this.options.auto = false;
+  }
 
-	this.index = index;
-	localforage.config({
-    	'name': self.options.name + '-collection'
-	});
+  this.index = index;
+  localforage.config({
+      'name': self.options.name + '-collection'
+  });
 
-	// capture all event and if auto true save changes
-	this.index.on('add', 'remove', 'update', (function () {
-		if(self.options.auto === true){
-			//self.save(function(){})
-		}
-	}));
+  // capture all event and if auto true save changes
+  this.index.on('add', 'remove', 'update', (function () {
+    if(self.options.auto === true){
+      //self.save(function(){})
+    }
+  }));
 
 
-	// if auto is true at start load current items into index
-	if(this.options.auto === true){
-		this.load(function(err, items){
-			if(callback){
-				callback(err, items)
-			}
-		});
-	}else{
-		if(callback){
-			callback(err, []);
-		}
-	}
+  // if auto is true at start load current items into index
+  if(this.options.auto === true){
+    this.load(function(err, items){
+      if(callback){
+        callback(err, items)
+      }
+    });
+  }else{
+    if(callback){
+      callback(null, []);
+    }
+  }
 
 };
 
 
 Persist.prototype.save = function (callback) {
-	var name = (this.options.name)? this.options.name + '-documents' : 'documents';
+  var name = (this.options.name)? this.options.name + '-documents' : 'documents';
 
-	localforage.setItem(name, this.index.documents.items).then(function(value) {
-	    console.log('document collection was stored: ' + value.length);
-	    callback(null, value); 
-	}, function(err) {
-	    console.error('document collection store errored: ' +  error);
-	    callback(err, null) 
-	});
+  // save full docuemnts
+  var pack = {
+    items: this.index.documents.items
+  }
+  // save free text index dump from lunr
+  if(this.index._freetext._lunrIndex){
+    pack.ftsIndex = this.index._freetext.toJSON()
+  }
+
+  localforage.setItem(name, pack).then(function(value) {
+      console.log('document collection was stored: ' + value.length);
+      callback(null, value); 
+  }, function(err) {
+      console.error('document collection store errored: ' +  error);
+      callback(err, null) 
+  });
 
 }
 
 
 Persist.prototype.load = function (callback) {
-	var name = (this.options.name)? this.options.name + '-documents' : 'documents';
+  var self = this,
+    name = (this.options.name)? this.options.name + '-documents' : 'documents'
 
-	localforage.getItem(name).then(function(value) {
-	    console.log('document collection was restored: ' + value.length);
-	    index.add(value);
-	    callback(null, value) 
-	}, function(err) {
-	    console.error('document collection restored errored: ' +  error);
-	    callback(err, null) 
-	});
+
+
+  localforage.getItem(name).then(function(pack) {
+    console.log('document collection was restored: ' + pack.items.length);
+
+    // load free text index dump into lunr
+    if(self.index._freetext 
+      && self.index._freetext._lunrIndex 
+      && pack.ftsIndex){
+
+    	console.log(JSON.stringify(pack.ftsIndex))
+      self.index._freetext.fromJSON(pack.ftsIndex)
+    }
+    // load full documents
+    index.add(pack.items, {ftsIndex: false});
+
+
+    callback(null, pack.items) 
+  }, function(err) {
+      console.error('document collection restored errored: ' +  error);
+      callback(err, null) 
+  });
+
+
 
 }
+
+
 
 
 Persist.prototype.removeAll = function (callback) {
-	var name = (this.options.name)? this.options.name + '-documents' : 'documents';
+  var name = (this.options.name)? this.options.name + '-documents' : 'documents';
 
-	localforage.removeItem(name).then(function(value) {
-	    console.log('document collection was removed: ' + value.length)
-	    callback(null, value) 
-	}, function(err) {
-	    console.error('document collection remove errored: ' +  error);
-	    callback(err, null) 
-	});
+  localforage.removeItem(name).then(function() {
+      console.log('document collection was removed')
+      callback(null, []) 
+  }, function(err) {
+      console.error('document collection remove errored: ' +  error);
+      callback(err, null) 
+  });
 
 }
 
-
-
-
-
-
-
-module.exports = Persist
-
+module.exports = Persist;
 },{"localforage":17}],9:[function(require,module,exports){
 
 
