@@ -13,7 +13,9 @@ Mani provides a document based search tool in javascript. It can be used in a br
   * field boast
   * injects match score
 * Query
-  * Simple property queries ~~based on Mongodb syntax~~
+  * Simple property queries 
+  * Comparison query operators ~~based on Mongodb syntax~~
+  * typeTo - enforcing the data type of property for comparisons
 * GEO search
   * Nearby query/sort
   * injects distance  
@@ -83,6 +85,45 @@ Search with two queries:
       } 
     })
 ```
+#### Comparison query operators
+Mani provides a number of simple comparison query operators based on manogodb syntax
+
+* '$gt': Greater than - `{query: {'viewed': {'$gt': 2000}}}`
+* '$gte': Greater than or equal - `{query: {'viewed': {'$gte': 1284}}}`
+* '$lt': Less than - `{query: {'viewed': {'$lt': 2000}}}`
+* '$lte': Less than or equal - `{query: {'viewed': {'$lte': 3552}}}`
+* '$exists': Property exists  - `{query: {'viewed': {'$exists': true}}}`  
+* '$ne': Not equals - `{query: {'viewed': {'$ne': 3552}}}`
+      
+#### typeTo - enforcing the data type of property for comparisons
+Mani allows you to enforce the data type of a property for comparisons. This is useful when the JSON you are consuming has a number as a string ie `"34"` when it should be `34`.
+
+```javascript
+  var options = {
+     'name': 'blog-post',
+     'text': [
+        {'path': 'title', 'boost': 20},
+        {'path': 'article.body'}
+     ], 
+     'typeTo [
+        {'path': 'views', convertTo: 'int'},
+        {'path': 'created', convertTo: 'date'}
+     ]
+  }
+
+  var index = new Mani(options);
+  index.add({
+      title: 'Are promises better than callback',
+      article: {
+         body: 'Do promises offer more flexibility than callbacks...',
+         tags: ['javascript','es6','promises']
+      },
+      views: "3451",
+      created: "2015-04-28T09:30-01:00"
+   });
+```
+`typeTo` currently supports `int`, `float`, `date` and `string`
+
 
 
 ### Nearby
@@ -132,9 +173,14 @@ From the documents in a search result:
 From all documents in a index:
 ```
     var results = index.facets({
-        'path': 'article.tags'
+        'path': 'article.tags',
+        'limit': 20
       })
 ```
+
+Properties used in facet:
+* `path` the JSON path to the property the facets are created from.
+* `limit` limits the number of facets returned.
 
 ### Paging
 A code example of returning results in pages set using `limit` and `startAt`

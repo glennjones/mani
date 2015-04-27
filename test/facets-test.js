@@ -59,6 +59,7 @@ describe('facets', function() {
 })
 
 
+
 describe('facets', function() {
 
 	var index = new mani(options);
@@ -70,6 +71,25 @@ describe('facets', function() {
    	it("search created facets", function(){
 		assert.deepEqual(returnedItems, [["extra",1],["foo",1]], "should have 2 facets");
    	})
+
+})
+
+
+
+describe('facets', function() {
+
+  var index = new mani(options);
+    index.add(docs);
+
+    var facets = new Facets(),
+      returnedItems = facets.build(index.documents, {
+        'path': 'article.tags',
+        'limit': 1
+     }, searchResults);
+
+    it("facets limited to one result", function(){
+    assert.deepEqual(returnedItems, [["extra",1]], "should have 1 facets");
+    })
 
 })
 

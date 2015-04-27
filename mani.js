@@ -166,8 +166,25 @@ Facets.prototype.build = function(documents, options, results) {
 
 	this.items = sortable;
 
+
+	if(options.limit){
+		sortable = _limit(options.limit, sortable)
+	}
+
 	return sortable; 
 }
+
+
+function _limit(num, documents){
+	if(_.isNumber(num) && Array.isArray(documents)){
+		num = parseInt(num, 10);
+		return documents.slice(0, num);
+	}else{
+		return [];
+	}
+}
+
+
 
 
 module.exports = Facets;
@@ -205,7 +222,7 @@ FreeText.prototype.search = function (options) {
 	   return item;
 	});
 
-	return _.sortByAll(ftsResults, ['score', 'ref']); 
+	return _.sortByOrder(ftsResults, ['score', 'ref'], [false, true]); 
 }
 
 
@@ -759,6 +776,10 @@ Match.prototype._isValidMatch = function (item, query) {
 	    		prop = [prop]
 	    	}
 
+	    	// check for user specified recasting of data type
+	    	prop = this._typeTo( prop, queryItem );
+
+
 	    	// if its a string/number/bool etc plain match
 	    	if(_.isObject(query[queryItem]) === false){
 
@@ -787,8 +808,8 @@ Match.prototype._isValidObjMatch = function ( propValue, obj ){
 
 	if(key.length > 0){
 		key = key[0]
-		test = obj[key];
-		propValue = propValue[0];
+		test = this._convertType( obj[key] );
+		propValue = this._convertType( propValue[0] );
 		
 
 		switch (key) {
@@ -832,6 +853,82 @@ Match.prototype._isValidObjMatch = function ( propValue, obj ){
 
 }
 
+
+// converts to more basic object type for comparison
+Match.prototype._convertType = function ( obj ){
+	if(_.isDate(obj)){
+		obj = obj.getTime();
+	}
+	return obj
+}
+
+
+// converts to user specified type by casting
+Match.prototype._typeTo = function ( arr, path ){
+	var self = this;
+
+	// if there are any instruction to cast properties
+	if(this.options.typeTo){
+		this.options.typeTo.forEach(function(item){
+
+			// if user has add this property path 
+			if(item.path !== undefined && 
+				item.convertTo !== undefined 
+				&& item.path === path){
+
+				// return a new array cast to correct data type
+				arr = arr.map(function(obj){
+
+					switch (item.convertTo) {
+						case 'date':
+							obj = new Date(obj);
+							if(self._isValidDate(obj) === false){
+								obj = null;
+							}
+							break;
+
+						case 'float':
+							obj = parseFloat(obj);
+							if(isNaN(obj)){
+								obj = null;
+							}
+							break;
+
+						case 'int':
+							obj = parseInt(obj, 10);
+							if(isNaN(obj)){
+								obj = null;
+							}
+							break;
+
+						case 'string':
+							if(obj && obj.toString){
+								obj = obj.toString()
+							}else{
+								obj = null;
+							}
+							break;
+					}
+
+					// return cast object
+					return obj;
+
+				});	
+			}	
+		});
+	}
+	return arr
+}
+
+
+// chect both object type and validness of date structure
+Match.prototype._isValidDate  = function (d) {
+  	if ( Object.prototype.toString.call(d) !== "[object Date]" ){
+  		return false;
+  	}else{
+  		return !isNaN(d.getTime());
+  	}
+}
 
 
 
