@@ -114,20 +114,147 @@ describe('match', function() {
 
 })
 
-/* TO DO: Add indexOf handling fro arrays
+
 describe('match', function() {
 
    var match = new Match({});
 
    var query1 = {
-         'article.tags':'bar'
+      'article.tags':'bar'
    };
 
-   it("_isValidMatch - using JSON path", function(){
+   it("_isValidMatch - match in an array", function(){
       assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match article.tags property");
       assert.deepEqual(match._isValidMatch(docs[1], query1), false, "should not match article.tags property");
    })
 
 })
-*/
+
+
+describe('match', function() {
+
+   var match = new Match({});
+
+   var query1 = {
+      'viewed': {'$gt': 2000}
+   };
+
+   it("_isValidMatch - $gt great than", function(){
+      assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match viewed property");
+      assert.deepEqual(match._isValidMatch(docs[1], query1), false, "should not match viewed property");
+   })
+
+})
+
+
+describe('match', function() {
+
+   var match = new Match({});
+
+   var query1 = {
+      'viewed': {'$gte': 1284}
+   };
+
+   it("_isValidMatch - $gte great than or equal to", function(){
+      assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match viewed property");
+      assert.deepEqual(match._isValidMatch(docs[1], query1), false, "should not match viewed property");
+   })
+
+})
+
+
+describe('match', function() {
+
+   var match = new Match({});
+
+   var query1 = {
+      'viewed': {'$lt': 2000}
+   };
+
+   it("_isValidMatch - $lt less than", function(){
+      assert.deepEqual(match._isValidMatch(docs[0], query1), false, "should not match viewed property");
+      assert.deepEqual(match._isValidMatch(docs[1], query1), true, "should match viewed property");
+   })
+
+})
+
+
+
+describe('match', function() {
+
+   var match = new Match({});
+
+   var query1 = {
+      'viewed': {'$lte': 3552}
+   };
+
+   it("_isValidMatch - $lte less than or equal to", function(){
+      assert.deepEqual(match._isValidMatch(docs[0], query1), false, "should not match viewed property");
+      assert.deepEqual(match._isValidMatch(docs[1], query1), true, "should match viewed property");
+   })
+
+})
+
+
+
+describe('match', function() {
+
+   var match = new Match({});
+
+   var query1 = {
+      'viewed': {'$exists': true}
+   };
+   var query2 = {
+      'viewed': {'$exists': false}
+   };
+   var query3 = {
+      'lastviewed': {'$exists': true}
+   };
+   var query4 = {
+      'lastviewed': {'$exists': false}
+   };
+
+   it("_isValidMatch - $exists property exists", function(){
+      assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match viewed property");
+      assert.deepEqual(match._isValidMatch(docs[0], query2), false, "should match viewed property");
+      assert.deepEqual(match._isValidMatch(docs[0], query3), false, "should not match lastviewed property");
+      assert.deepEqual(match._isValidMatch(docs[1], query4), true, "should not match lastviewed property");
+   })
+
+})
+
+
+//  TODO
+//  * test for each match type
+//  * text string, numbers, date
+//  * document
+
+
+
+describe('match', function() {
+
+   var match = new Match({});
+
+   var query = {
+      'viewed': {'$ne': 3552}
+   };
+
+   it("_isValidMatch - $en not equal to", function(){
+      assert.deepEqual(match._isValidMatch(docs[0], query), true, "should match viewed property");
+      assert.deepEqual(match._isValidMatch(docs[1], query), false, "should not match viewed property");
+   })
+
+})
+
+
+
+
+
+
+
+
+
+
+
+
 
