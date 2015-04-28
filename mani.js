@@ -115,7 +115,7 @@ Facets = function(eventEmitter){
 // create facet list from a field in the documents
 Facets.prototype.build = function(documents, options, results) { 
 	options = (options)? options : {};
-	options.lowerCase = (options.lowerCase)? options.lowerCase : true;
+	options.lowerCase = (options.lowerCase !== undefined)? options.lowerCase : true;
 
 	var field = options.field,
 		out = {};
@@ -757,89 +757,147 @@ Match.prototype.search = function (options, documents, subSet) {
 }
 
 
-Match.prototype._isValidMatch = function (item, query) {
+Match.prototype._isValidMatch = function (item, query, path) {
 	var self = this,
 		isValid = true;
 
-	//console.log(JSON.stringify(query) );
 
 	// loop query items
 	for (var queryItem in query) {
 	  	if( query.hasOwnProperty( queryItem ) ) {
 
-		    //console.log(queryItem + " = " + JSON.stringify(query[queryItem]) );
-		    var prop = utilities.reach(item, queryItem)
+		    // reach into JSON structure to get item
+		    var prop = utilities.reach(item, queryItem);
 
-
+		    
     		// turn into single value into an array
 	    	if(!Array.isArray(prop)){
 	    		prop = [prop]
 	    	}
 
 	    	// check for user specified recasting of data type
-	    	prop = this._typeTo( prop, queryItem );
+	    	prop = this._typeTo( prop, (path)? path : queryItem ); 
 
 
-	    	// if its a string/number/bool etc plain match
+	    	
 	    	if(_.isObject(query[queryItem]) === false){
 
-				// found property for match
-	    		if(prop !== undefined){
-			    	if( prop.indexOf(query[queryItem]) === -1){
-			    		isValid = false;
-			    	}
+				// simple equals match
+				if(path !== undefined){
+					path += queryItem
 				}
+				isValid = self._isValidEqualsMatch( prop, query[queryItem] );
 
 		    }else{
-		    	isValid = self._isValidObjMatch( prop, query[queryItem] )
-		    }
+				if( self._isOperator ( query[queryItem] ) ){
+
+					// operator match ie < > !==
+			    	isValid = self._isValidOperatorMatch( prop, query[queryItem] )	
+
+			    }else{
+
+			    	// sub document match
+		    		var compPath = (path)? path : queryItem + '.';
+		    		isValid = self._isValidInSubDocuments( prop, query[queryItem], compPath );
+		    		console.log(isValid)
+
+		    	}
+			}
 
 	  	} 
+	}
+
+	/*if(path !== undefined){
+		console.log(path)
+	}*/
+
+	return isValid;
+}
+
+
+// given a grounp of sub documents match query against each 
+Match.prototype._isValidInSubDocuments = function ( subDocuments, query, path ){
+	var self = this,
+		isValid = false;
+
+	// define path for subDocuments
+	if(_.isObject(query)){
+		var keys = Object.keys(query);
+		if(keys[0] && _.startsWith( keys[0], '$') === false){
+			path += keys[0];
+		}	
+	}
+
+	if( Array.isArray(subDocuments)){
+		subDocuments.forEach(function(item){
+
+			// find one match make parent valid
+			if( self._isValidMatch(item, query, path) ){
+				isValid = true;
+			}
+		});
 	}
 
 	return isValid;
 }
 
-Match.prototype._isValidObjMatch = function ( propValue, obj ){
+
+
+// simple equals match
+Match.prototype._isValidEqualsMatch = function ( propValue, test ){
+	var isValid = true;
+	if(propValue !== undefined){
+    	if( propValue.indexOf(test) === -1){
+    		isValid = false;
+    	}
+	}
+	return isValid;
+}
+
+
+
+// an operator match
+Match.prototype._isValidOperatorMatch = function ( propValue, obj ){
 
 	var isValid = false,
 		test = null,
+		prop = null,
 		key = Object.keys(obj);
 
 	if(key.length > 0){
 		key = key[0]
 		test = this._convertType( obj[key] );
-		propValue = this._convertType( propValue[0] );
+		prop = this._convertType( propValue[0] );
 		
 
 		switch (key) {
 			case '$gt':
 				// Greater than
-				isValid = (test > propValue);
+				isValid = (prop > test );
 				break;
 
 			case '$gte':
 				// Greater than or equal
-				isValid = (test >= propValue);
+				isValid = (prop >= test);
 				break;
 
 			case '$lt':
 				// Less than
-				isValid = (test < propValue);
+				isValid = (prop < test);
 				break;
 
 			case '$lte':
 				// Less than or equal
-				isValid = (test <= propValue);
+				isValid = (prop <= test);
 				break;
 
 			case '$exists':
 				// Property exists
-				isValid = (propValue=== undefined) !== test;
+				isValid = (prop === undefined) !== test;
 				break;
 
 			case '$ne': // Not equals
-				isValid =  (propValue != test); // jshint ignore:line
+				isValid =  (prop != test); // jshint ignore:line
 				break;
 
 			default:
@@ -854,6 +912,25 @@ Match.prototype._isValidObjMatch = function ( propValue, obj ){
 }
 
 
+
+// does the frist key in an object startwith $
+Match.prototype._isOperator = function ( obj ){
+	//console.log(JSON.stringify(obj))
+	var isValidOperator = false;
+
+	if(_.isObject(obj)){
+		var keys = Object.keys(obj);
+		//console.log(JSON.stringify(keys))
+		if(keys[0] && _.startsWith( keys[0], '$') ){
+			isValidOperator = true;
+		}	
+	}
+
+	return isValidOperator;
+}
+
+
+
 // converts to more basic object type for comparison
 Match.prototype._convertType = function ( obj ){
 	if(_.isDate(obj)){
@@ -863,9 +940,17 @@ Match.prototype._convertType = function ( obj ){
 }
 
 
+
+// support path with sub documents ie comments.|.tags
+
+
+
+
 // converts to user specified type by casting
 Match.prototype._typeTo = function ( arr, path ){
 	var self = this;
+
+	console.log(path)
 
 	// if there are any instruction to cast properties
 	if(this.options.typeTo){
@@ -921,7 +1006,7 @@ Match.prototype._typeTo = function ( arr, path ){
 }
 
 
-// chect both object type and validness of date structure
+// checks both object type and validness of date structure
 Match.prototype._isValidDate  = function (d) {
   	if ( Object.prototype.toString.call(d) !== "[object Date]" ){
   		return false;

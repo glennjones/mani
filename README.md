@@ -15,6 +15,7 @@ Mani provides a document based search tool in javascript. It can be used in a br
 * Query
   * Simple property queries 
   * Comparison query operators ~~based on Mongodb syntax~~
+  * Sub-document queries
   * typeTo - enforcing the data type of property for comparisons
 * GEO search
   * Nearby query/sort
@@ -94,6 +95,19 @@ Mani provides a number of simple comparison query operators based on manogodb sy
 * '$lte': Less than or equal - `{query: {'viewed': {'$lte': 3552}}}`
 * '$exists': Property exists  - `{query: {'viewed': {'$exists': true}}}`  
 * '$ne': Not equals - `{query: {'viewed': {'$ne': 3552}}}`
+
+#### Sub-document queries
+Mani can query arrays of sub-documents. The following query will search the tag property within an array of 'comments' objects ('sub-documents').
+```javascript
+    var results = index.search({
+       'query': {
+            'comments': {
+                'tags': 'y'
+            }
+    })
+```
+
+
       
 #### typeTo - enforcing the data type of property for comparisons
 Mani allows you to enforce the data type of a property for comparisons. This is useful when the JSON you are consuming has a number as a string ie `"34"` when it should be `34`.
@@ -105,7 +119,7 @@ Mani allows you to enforce the data type of a property for comparisons. This is 
         {'path': 'title', 'boost': 20},
         {'path': 'article.body'}
      ], 
-     'typeTo [
+     'typeTo': [
         {'path': 'views', convertTo: 'int'},
         {'path': 'created', convertTo: 'date'}
      ]

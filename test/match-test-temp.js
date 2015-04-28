@@ -2,7 +2,7 @@
 Mocha test for: match
 */
 
-var   Chai     		= require('chai'),
+/*var   Chai     		= require('chai'),
       assert   		= Chai.assert,
       Match   	      = require('../lib/match.js'),
       Mani     		= require('../lib/index.js');
@@ -26,19 +26,7 @@ var docs = [{
       'published':  false,
       'created': new Date('2015-04-26T00:00-01:00'),
       'viewed': 1284,
-      'likes': '56',
-      "comments": [
-        {
-          "title": "Its a foo",
-          "created": "2015-05-15T19:45:00+01:00", 
-          'tags': ['a']  
-        },
-        {
-          "title": "Its a using foo",
-          "created": "2015-05-15T19:45:00+01:00",
-          'tags': ['y','x']   
-        }
-      ]
+      'likes': '56'
    },{
       'title': 'test 2',
       'article': {
@@ -48,24 +36,10 @@ var docs = [{
       'published':  true,
       'created': new Date('2015-04-28T00:00-01:00'),
       'viewed': 3552,
-      'likes': '93',
-      "comments": [
-        {
-          "title": "Its a bar",
-          "created": "2015-05-15T19:45:00+01:00", 
-          'tags': ['y']  
-        },
-        {
-          "title": "Its a using bar",
-          "created": "2015-05-15T19:45:00+01:00",
-          'tags': ['x']   
-        }
-      ]
+      'likes': '93'
    }];
 
 
-// Constructor
-// -----------------------------------
 
 describe('match', function() {
 
@@ -73,26 +47,6 @@ describe('match', function() {
 
    it("created", function(){
       assert.deepEqual(match.options, {}, "should emply options object");
-   })
-
-})
-
-
-// Equals matches
-// -----------------------------------
-
-describe('match', function() {
-
-   var match = new Match({});
-
-   var query1 = {
-      'article.tags':'bar'
-   };
-
-   it("_isValidEqualsMatch - equals match", function(){
-      assert.deepEqual(match._isValidEqualsMatch(['text'], 'text'), true, "should match text");
-      assert.deepEqual(match._isValidEqualsMatch(['foo','text'], 'text'), true, "should match text");
-      assert.deepEqual(match._isValidEqualsMatch(['foo','bar'], 'text'), false, "should not match text");
    })
 
 })
@@ -115,18 +69,18 @@ describe('match', function() {
    };
 
    it("_isValidMatch - single string match", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match title property");
-      assert.deepEqual(match._isValidMatch(docs[1], query1), false, "should not match title property");
+      assert.deepEqual(match._match(docs[0], query1), true, "should match title property");
+      assert.deepEqual(match._match(docs[1], query1), false, "should not match title property");
    })
 
    it("_isValidMatch - single bool match", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query2), true, "should match title property");
-      assert.deepEqual(match._isValidMatch(docs[1], query2), false, "should not match title property");
+      assert.deepEqual(match._match(docs[0], query2), true, "should match title property");
+      assert.deepEqual(match._match(docs[1], query2), false, "should not match title property");
    })
 
    it("_isValidMatch - single number match", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query3), true, "should match title property");
-      assert.deepEqual(match._isValidMatch(docs[1], query3), false, "should not match title property");
+      assert.deepEqual(match._match(docs[0], query3), true, "should match title property");
+      assert.deepEqual(match._match(docs[1], query3), false, "should not match title property");
    })
 
 })
@@ -142,8 +96,8 @@ describe('match', function() {
    };
 
    it("_isValidMatch - more than one match", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match title/published properties");
-      assert.deepEqual(match._isValidMatch(docs[1], query1), false, "should not match title/published properties");
+      assert.deepEqual(match._match(docs[0], query1), true, "should match title/published properties");
+      assert.deepEqual(match._match(docs[1], query1), false, "should not match title/published properties");
    })
 
 })
@@ -158,8 +112,8 @@ describe('match', function() {
    };
 
    it("_isValidMatch - using JSON path", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match article.body property");
-      assert.deepEqual(match._isValidMatch(docs[1], query1), false, "should not match article.body property");
+      assert.deepEqual(match._match(docs[0], query1), true, "should match article.body property");
+      assert.deepEqual(match._match(docs[1], query1), false, "should not match article.body property");
    })
 
 })
@@ -178,13 +132,11 @@ describe('match', function() {
    };
 
    it("_isValidMatch - match in an array", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match article.tags property");
-      assert.deepEqual(match._isValidMatch(docs[1], query1), false, "should not match article.tags property");
+      assert.deepEqual(match._match(docs[0], query1), true, "should match article.tags property");
+      assert.deepEqual(match._match(docs[1], query1), false, "should not match article.tags property");
    })
 
 })
-
-
 
 
 
@@ -196,36 +148,16 @@ describe('match', function() {
 
    var match = new Match({});
 
-   var obj1 = {'$gt': 2000};
-   var obj2 = {'viewed': 2000};
-
-   it("_isOperator - look for operator key in object ie $gt", function(){
-      assert.deepEqual(match._isOperator(obj1), true, "should match operator key");
-      assert.deepEqual(match._isOperator(obj2), false, "should not match operator key");
-   })
-
-})
-
-
-
-
-
-
-describe('match', function() {
-
-   var match = new Match({});
-
    var query1 = {
       'viewed': {'$gt': 2000}
    };
 
    it("_isValidMatch - $gt great than", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match viewed property");
-      assert.deepEqual(match._isValidMatch(docs[1], query1), false, "should not match viewed property");
+      assert.deepEqual(match._match(docs[0], query1), true, "should match viewed property");
+      assert.deepEqual(match._match(docs[1], query1), false, "should not match viewed property");
    })
 
 })
-
 
 describe('match', function() {
 
@@ -236,8 +168,8 @@ describe('match', function() {
    };
 
    it("_isValidMatch - $gte great than or equal to", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match viewed property");
-      assert.deepEqual(match._isValidMatch(docs[1], query1), false, "should not match viewed property");
+      assert.deepEqual(match._match(docs[0], query1), true, "should match viewed property");
+      assert.deepEqual(match._match(docs[1], query1), false, "should not match viewed property");
    })
 
 })
@@ -252,8 +184,8 @@ describe('match', function() {
    };
 
    it("_isValidMatch - $lt less than", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query1), false, "should not match viewed property");
-      assert.deepEqual(match._isValidMatch(docs[1], query1), true, "should match viewed property");
+      assert.deepEqual(match._match(docs[0], query1), false, "should not match viewed property");
+      assert.deepEqual(match._match(docs[1], query1), true, "should match viewed property");
    })
 
 })
@@ -269,8 +201,8 @@ describe('match', function() {
    };
 
    it("_isValidMatch - $lte less than or equal to", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query1), false, "should not match viewed property");
-      assert.deepEqual(match._isValidMatch(docs[1], query1), true, "should match viewed property");
+      assert.deepEqual(match._match(docs[0], query1), false, "should not match viewed property");
+      assert.deepEqual(match._match(docs[1], query1), true, "should match viewed property");
    })
 
 })
@@ -295,13 +227,18 @@ describe('match', function() {
    };
 
    it("_isValidMatch - $exists property exists", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query1), true, "should match viewed property");
-      assert.deepEqual(match._isValidMatch(docs[0], query2), false, "should match viewed property");
-      assert.deepEqual(match._isValidMatch(docs[0], query3), false, "should not match lastviewed property");
-      assert.deepEqual(match._isValidMatch(docs[1], query4), true, "should not match lastviewed property");
+      assert.deepEqual(match._match(docs[0], query1), true, "should match viewed property");
+      assert.deepEqual(match._match(docs[0], query2), false, "should match viewed property");
+      assert.deepEqual(match._match(docs[0], query3), false, "should not match lastviewed property");
+      assert.deepEqual(match._match(docs[1], query4), true, "should not match lastviewed property");
    })
 
 })
+
+
+//  TODO
+//  * text string, numbers, date
+
 
 
 
@@ -313,43 +250,30 @@ describe('match', function() {
       'viewed': {'$ne': 3552}
    };
 
-   it("_isValidMatch - $ne not equal to", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query), true, "should match viewed property");
-      assert.deepEqual(match._isValidMatch(docs[1], query), false, "should not match viewed property");
+   it("_isValidMatch - $en not equal to", function(){
+      assert.deepEqual(match._match(docs[0], query), true, "should match viewed property");
+      assert.deepEqual(match._match(docs[1], query), false, "should not match viewed property");
    })
 
 })
 
 
-
-
-
-// Query matches for child sub documents
-// -----------------------------------
 
 
 describe('match', function() {
 
    var match = new Match({});
 
-   var query1 = {
-      'comments': {'title': 'Its a bar'}
+   var query = {
+      'viewed': {'$ne': 3552}
    };
 
-   var query2 = {
-      'comments': {'tags': 'y'}
-   };
-
-   it("_isValidMatch - match sub documents with equals", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query1), false, "should not match comments.|.title property");
-      assert.deepEqual(match._isValidMatch(docs[1], query1), true, "should match comments.|.title property");
-      assert.deepEqual(match._isValidMatch(docs[0], query2), true, "should match comments.|.tag property");
-      assert.deepEqual(match._isValidMatch(docs[1], query2), true, "should match comments.|.tag property");
+   it("_isValidMatch - $en not equal to", function(){
+      assert.deepEqual(match._match(docs[0], query), true, "should match viewed property");
+      assert.deepEqual(match._match(docs[1], query), false, "should not match viewed property");
    })
 
 })
-
-
 
 
 
@@ -367,8 +291,8 @@ describe('match', function() {
    };
 
    it("_isValidMatch - Date based $gt great than", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query), true, "should match created property");
-      assert.deepEqual(match._isValidMatch(docs[1], query), false, "should not match created property");
+      assert.deepEqual(match._match(docs[0], query), true, "should match created property");
+      assert.deepEqual(match._match(docs[1], query), false, "should not match created property");
    })
 
 })
@@ -383,8 +307,8 @@ describe('match', function() {
    };
 
    it("_isValidMatch - Date based $ne great than", function(){
-      assert.deepEqual(match._isValidMatch(docs[0], query), true, "should match created property");
-      assert.deepEqual(match._isValidMatch(docs[1], query), false, "should not match created property");
+      assert.deepEqual(match._match(docs[0], query), true, "should match created property");
+      assert.deepEqual(match._match(docs[1], query), false, "should not match created property");
    })
 
 })
@@ -462,6 +386,8 @@ describe('match', function() {
       ]
    });
 
+   console.log(match._typeTo([23], 'liked'))
+
    it("_typeTo - typeTo string", function(){
       assert.deepEqual(match._typeTo([23], 'liked'), ['23'], "should cast to string");
       assert.deepEqual(match._typeTo([23.3], 'liked'), ['23.3'], "should cast to string");
@@ -471,18 +397,11 @@ describe('match', function() {
       assert.deepEqual(match._typeTo([true], 'liked'), ['true'], "should cast to string");
    })
 
-})
+})*/
 
 
 
-describe('match', function() {
-   var match = new Match({});
 
-   it("_convertType - converts for comparsion", function(){
-      assert.deepEqual(match._convertType(new Date('2015-04-28')), 1430179200000, "should cast to int based epoch");
-   })
-
-})
 
 
 
