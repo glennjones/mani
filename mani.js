@@ -767,7 +767,8 @@ Match.prototype._isValidMatch = function (item, query, path) {
 	  	if( query.hasOwnProperty( queryItem ) ) {
 
 		    // reach into JSON structure to get item
-		    var prop = utilities.reach(item, queryItem);
+		    var queryObj = query[queryItem],
+		    	prop = utilities.reach(item, queryItem);
 
 		    
     		// turn into single value into an array
@@ -780,28 +781,62 @@ Match.prototype._isValidMatch = function (item, query, path) {
 
 
 	    	
-	    	if(_.isObject(query[queryItem]) === false){
+	    	if(_.isObject(queryObj) === false){
 
-				// simple equals match
+				// simple equals match ie the vaule is not a object
 				if(path !== undefined){
 					path += queryItem
 				}
-				isValid = self._isValidEqualsMatch( prop, query[queryItem] );
+				isValid = self._isValidEqualsMatch( prop, queryObj );
 
 		    }else{
-				if( self._isOperator ( query[queryItem] ) ){
 
-					// operator match ie < > !==
-			    	isValid = self._isValidOperatorMatch( prop, query[queryItem] )	
+		    	// loop object properties to find sub queries 
+				for (var subQueryKey in queryObj) {
 
-			    }else{
+				  if( queryObj.hasOwnProperty( subQueryKey ) ) {
 
-			    	// sub document match
-		    		var compPath = (path)? path : queryItem + '.';
-		    		isValid = self._isValidInSubDocuments( prop, query[queryItem], compPath );
-		    		console.log(isValid)
+				  	// rebuild sub query object for matching
+				    var singleQuery = {};
+				    singleQuery[subQueryKey] = queryObj[subQueryKey]
 
-		    	}
+
+					if( self._isOperator ( subQueryKey ) ){
+
+						// operator match ie < > !==
+				    	if(self._isValidOperatorMatch( prop, singleQuery ) === false){
+				    		isValid = false;
+				    	}	
+
+				    }else{
+
+				    	// sub document match
+			    		var compPath = (path)? path : queryItem + '.';
+			    		if(self._isValidInSubDocuments( prop, singleQuery, compPath ) === false){
+			    			isValid = false;
+				    	}	
+
+			    	}
+
+				  } 
+				}
+
+
+			/*		if( self._isOperator ( queryObj ) ){
+
+						// operator match ie < > !==
+				    	isValid = self._isValidOperatorMatch( prop, queryObj )	
+
+				    }else{
+
+				    	// sub document match
+			    		var compPath = (path)? path : queryItem + '.';
+			    		isValid = self._isValidInSubDocuments( prop, queryObj, compPath );
+
+			    	}*/
+
+
+	
 			}
 
 	  	} 
@@ -859,52 +894,55 @@ Match.prototype._isValidEqualsMatch = function ( propValue, test ){
 // an operator match
 Match.prototype._isValidOperatorMatch = function ( propValue, obj ){
 
-	var isValid = false,
-		test = null,
-		prop = null,
-		key = Object.keys(obj);
+	var isValid = false;
 
-	if(key.length > 0){
-		key = key[0]
-		test = this._convertType( obj[key] );
-		prop = this._convertType( propValue[0] );
-		
+	if(propValue !== undefined && obj !== undefined){
+		var test = null,
+			prop = null,
+			key = Object.keys(obj);
 
-		switch (key) {
-			case '$gt':
-				// Greater than
-				isValid = (prop > test );
-				break;
-
-			case '$gte':
-				// Greater than or equal
-				isValid = (prop >= test);
-				break;
-
-			case '$lt':
-				// Less than
-				isValid = (prop < test);
-				break;
-
-			case '$lte':
-				// Less than or equal
-				isValid = (prop <= test);
-				break;
-
-			case '$exists':
-				// Property exists
-				isValid = (prop === undefined) !== test;
-				break;
-
-			case '$ne': // Not equals
-				isValid =  (prop != test); // jshint ignore:line
-				break;
-
-			default:
-				isValid = false;
+		if(key.length > 0){
+			key = key[0]
+			test = this._convertType( obj[key] );
+			prop = this._convertType( propValue[0] );
 			
-		}
 
+			switch (key) {
+				case '$gt':
+					// Greater than
+					isValid = (prop > test );
+					break;
+
+				case '$gte':
+					// Greater than or equal
+					isValid = (prop >= test);
+					break;
+
+				case '$lt':
+					// Less than
+					isValid = (prop < test);
+					break;
+
+				case '$lte':
+					// Less than or equal
+					isValid = (prop <= test);
+					break;
+
+				case '$exists':
+					// Property exists
+					isValid = (prop === undefined) !== test;
+					break;
+
+				case '$ne': // Not equals
+					isValid =  (prop != test); // jshint ignore:line
+					break;
+
+				default:
+					isValid = false;
+				
+			}
+
+		}
 	}	
 
 	return isValid;
@@ -915,18 +953,7 @@ Match.prototype._isValidOperatorMatch = function ( propValue, obj ){
 
 // does the frist key in an object startwith $
 Match.prototype._isOperator = function ( obj ){
-	//console.log(JSON.stringify(obj))
-	var isValidOperator = false;
-
-	if(_.isObject(obj)){
-		var keys = Object.keys(obj);
-		//console.log(JSON.stringify(keys))
-		if(keys[0] && _.startsWith( keys[0], '$') ){
-			isValidOperator = true;
-		}	
-	}
-
-	return isValidOperator;
+	return _.startsWith( obj, '$');
 }
 
 
@@ -950,7 +977,6 @@ Match.prototype._convertType = function ( obj ){
 Match.prototype._typeTo = function ( arr, path ){
 	var self = this;
 
-	console.log(path)
 
 	// if there are any instruction to cast properties
 	if(this.options.typeTo){

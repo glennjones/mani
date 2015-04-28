@@ -14,7 +14,7 @@ Mani provides a document based search tool in javascript. It can be used in a br
   * injects match score
 * Query
   * Simple property queries 
-  * Comparison query operators ~~based on Mongodb syntax~~
+  * Comparison query operators
   * Sub-document queries
   * typeTo - enforcing the data type of property for comparisons
 * GEO search
