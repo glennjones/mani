@@ -3,7 +3,7 @@
 # IN DEVELOPMENT - API NOT STABLE
 
 ###  Pure javascript search - browser and node.js
-Mani provides a document based search tool in javascript. It can be used in a browser or with node.js/io.js Its a very simplistic version of the type of features you get from [Solr](http://lucene.apache.org/solr/). It's build for small sets of data i.e. a few hundred/thousand items.
+Mani provides a document based search tool in javascript. It merges together free text search, mongodb type queries, geo search and facets. 
 
 
 
@@ -21,7 +21,7 @@ Mani provides a document based search tool in javascript. It can be used in a br
   * Nearby query/sort
   * injects distance  
 * Facets
-* Pageing
+* Pageing and sorting
 * Persistent browser storage
 * Serialize data and indexs to and from a JSON file
 * Works with complex JSON documents with child objects
@@ -196,24 +196,28 @@ Properties used in facet:
 * `path` the JSON path to the property the facets are created from.
 * `limit` limits the number of facets returned.
 
-### Paging
+### Paging and sorting
 A code example of returning results in pages set using `limit` and `startAt`
 
 ```javascript
-var results = index.search({
+    var results = index.search({
          text: 'promises', 
          facets: {
             'path': 'article.tags'
          }
         'limit': 20,
-      'startAt': 20
-      })
+        'startAt': 20,
+        'sort': { 
+            'path': 'article.titles', 
+            'reverse': true
+        }
+    })
 ```
 
 Properties used for paging:
 * `limit` limits the number of results returned has to 1 or greater.
 * `startAt` defines where mani starts returning results from within a result set.
-
+* `sort` object containing `path` and `direction` property .
 
 ### Browser usage
 To use Mani in a browser simple add the script file
@@ -283,7 +287,8 @@ From JSON
 
 ### Built on top of
 This project stand on the shoulders of others:
-* [lunrjs](http://lunrjs.com/) - free text search   
+* [lunrjs](http://lunrjs.com/) - free text search  
+* [nedb](https://github.com/louischatriot/nedb) - the query engine from nedb   
 * [geolib](https://github.com/manuelbieh/Geolib) - nearby search
 * [localForage](https://github.com/mozilla/localForage) - data persistance  
 
