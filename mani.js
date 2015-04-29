@@ -388,10 +388,10 @@ Geo.prototype.nearby = function ( options, subSet ) {
 // use get result limit based on paging options
 Geo.prototype._getResultLimit = function ( options ) {
 	var out = null;
-	if(options.paging){
+	if(options){
 		
-		var startAtNum = utilities.reach(options,'paging.startAt'),
-			limitNum = utilities.reach(options,'paging.limit');
+		var startAtNum = utilities.reach(options,'startAt'),
+			limitNum = utilities.reach(options,'limit');
 
 
 		if(limitNum !== undefined){
@@ -729,6 +729,34 @@ module.exports = Mani;
 },{"./documents":1,"./facets":2,"./freetext":3,"./geo":4,"./match-temp":6,"./paging":7,"./utilities":8,"geolib":9,"lunr":11}],6:[function(require,module,exports){
 var _			= require('lodash'),
 	utilities	= require('./utilities');
+
+
+/*https://github.com/louischatriot/nedb
+
+(The MIT License)
+
+Copyright (c) 2013 Louis Chatriot &lt;louis.chatriot@gmail.com&gt;
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
 
 
 /**
