@@ -36,7 +36,6 @@ A code example of setting up a search index, loading 2 documents and search for 
 ```javascript
 
   var options = {
-     'name': 'blog-post',
      'text': [
         {'path': 'title', 'boost': 20},
         {'path': 'article.body'}
@@ -64,6 +63,19 @@ A code example of setting up a search index, loading 2 documents and search for 
         text: 'promises'
      });
 ```
+The free text search uses a list of stop words which you can replaces by a new array of words to the option when setup your index. if you want to remove the stop words just add a blank array. 
+
+```javascript
+  var options = {
+     'stopWords': ['']
+     'text': [
+        {'path': 'title', 'boost': 20},
+        {'path': 'article.body'}
+     ]
+  }
+```
+
+
 
 ### Query
 The current code does simple matches on the content of properties in your docuements

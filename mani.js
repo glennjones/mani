@@ -201,13 +201,23 @@ var Lunr		= require('lunr'),
 // create a documents collection that encapsules lunr interface
 FreeText = function( options, eventEmitter ){
 	this._lunrIndex = null;
-	this.options = {};
+	this.options = options || {};
+	
+	//if(Array.isArray(options.stopWords)){
+	//	Lunr.stopWordFilter.stopWords  = options.stopWords;
+	//}
 
-	if(options && options.text){
+	if(options.text){
 		this.options.text = options.text
 		this._lunrIndex = this._getLunrIndex(this.options);
-	}
 
+		if(options.stopWords){
+			// inject new stopwords directly into current stopWordFilter
+			this._lunrIndex.pipeline._stack[1].stopWords = options.stopWords;
+		}
+
+	}
+	
 	this.eventEmitter = (eventEmitter)? this.eventEmitter : null;
 };
 
