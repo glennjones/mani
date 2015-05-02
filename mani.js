@@ -521,7 +521,7 @@ Mani.Index.prototype._configure = function (options) {
 
 
 // expose externally 
-Mani.geo = Geo;
+Mani.geo = GeoLib;
 Mani.lunr = Lunr;
 
 
