@@ -1,7 +1,7 @@
 /*
 Mocha test for: match
 */
-
+/*
 var   Chai     		= require('chai'),
       assert   		= Chai.assert,
       Match   	      = require('../lib/match.js'),
@@ -395,6 +395,8 @@ describe('match', function() {
 
 })
 
+*/
+
 
 /*
 describe('match', function() {
@@ -416,7 +418,7 @@ describe('match', function() {
 })
 */
 
-
+/*
 
 
 
@@ -515,7 +517,7 @@ describe('match', function() {
    })
 
 })
-
+*/
 
 
 

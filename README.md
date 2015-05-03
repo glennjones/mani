@@ -3,7 +3,7 @@
 # IN DEVELOPMENT - API NOT STABLE
 
 ###  Pure javascript search - browser and node.js
-Mani provides a document based search tool in javascript. It merges together free text search, mongodb type queries, geo search and facets. 
+Mani provides a document based search tool in javascript. It merges together free text search, mongodb type queries, geo search and facets from other projects into one library.
 
 
 
@@ -12,11 +12,10 @@ Mani provides a document based search tool in javascript. It merges together fre
 * Free text search
   * field boast
   * injects match score
+  * stopword list
 * Query
-  * Simple property queries 
-  * Comparison query operators
-  * Sub-document queries
-  * typeTo - enforcing the data type of property for comparisons
+  * Simple property queries (mongodb syntax)
+  * ~~typeTo - enforcing the data type of property for comparisons~~
 * GEO search
   * Nearby query/sort
   * injects distance  
@@ -107,49 +106,6 @@ Mani provides a number of simple comparison query operators based on manogodb sy
 * '$lte': Less than or equal - `{query: {'viewed': {'$lte': 3552}}}`
 * '$exists': Property exists  - `{query: {'viewed': {'$exists': true}}}`  
 * '$ne': Not equals - `{query: {'viewed': {'$ne': 3552}}}`
-
-#### Sub-document queries
-Mani can query arrays of sub-documents. The following query will search the tag property within an array of 'comments' objects ('sub-documents').
-```javascript
-    var results = index.search({
-       'query': {
-            'comments': {
-                'tags': 'y'
-            }
-    })
-```
-
-
-      
-#### typeTo - enforcing the data type of property for comparisons
-Mani allows you to enforce the data type of a property for comparisons. This is useful when the JSON you are consuming has a number as a string ie `"34"` when it should be `34`.
-
-```javascript
-  var options = {
-     'name': 'blog-post',
-     'text': [
-        {'path': 'title', 'boost': 20},
-        {'path': 'article.body'}
-     ], 
-     'typeTo': [
-        {'path': 'views', convertTo: 'int'},
-        {'path': 'created', convertTo: 'date'}
-     ]
-  }
-
-  var index = new Mani(options);
-  index.add({
-      title: 'Are promises better than callback',
-      article: {
-         body: 'Do promises offer more flexibility than callbacks...',
-         tags: ['javascript','es6','promises']
-      },
-      views: "3451",
-      created: "2015-04-28T09:30-01:00"
-   });
-```
-`typeTo` currently supports `int`, `float`, `date` and `string`
-
 
 
 ### Nearby

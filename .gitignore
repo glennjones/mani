@@ -18,4 +18,5 @@ _site
 
 examples/
 build/
+settings/
 gruntfile-old.js
