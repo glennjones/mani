@@ -605,10 +605,10 @@ Mani.Index.prototype.add = function (doc, options) {
 			}
 	    	self._geo.add(item);
 		})
-		this.eventEmitter.emit('add', doc, this);
+		this.eventEmitter.emit('add', doc, 'add', this);
 		return doc;
 	}else{
-		this.eventEmitter.emit('add', null, this);
+		this.eventEmitter.emit('add', null, 'add', this);
 		return null;
 	}
 }
@@ -625,7 +625,7 @@ Mani.Index.prototype.removeAll = function (callback) {
 	this._freetext.removeAll();
 	this._geo.removeAll();
 
-	this.eventEmitter.emit('removeAll', itemsRemoved, this);
+	this.eventEmitter.emit('removeAll', itemsRemoved, 'removed', this);
 	callback(err, itemsRemoved);
 
 }
@@ -714,6 +714,16 @@ Mani.Index.prototype.fromJSON = function ( json ) {
     // load full documents
     this.add(json.items, {ftsIndex: false});
 }
+
+
+// load just the data elements from serialized JSON
+Mani.Index.prototype.dataFromJSON = function ( json ) {
+    // load full documents
+    if(json.items){
+      this.add(json.items);
+    }
+}
+
 
 
 

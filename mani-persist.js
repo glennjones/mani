@@ -4,7 +4,6 @@
 
 var localforage     = require('localforage');
 
-
 // create a documents collection that encapsules lunr interface
 Persist = function( index, options, callback ){
 
@@ -24,17 +23,19 @@ Persist = function( index, options, callback ){
   });
 
   // capture all event and if auto true save changes
-  this.index.on('add', 'remove', 'update', (function () {
+  this.index.on('add', 'remove', 'update', (function (items, eventType, context) {
     if(self.options.auto === true){
-      //self.save(function(){})
+      self.save(function(err, items){
+           console.log('persist: ', eventType, ' event capture - errors: ', err)
+      })
     }
   }));
 
   // if auto is true at start load current items into index
   if(this.options.auto === true){
-    this.load(function(err, items){
+    this.load( {loadOnlyData: true}, function(err, items){
       if(callback){
-        callback(err, items)
+        callback(err, items);
       }
     });
   }else{
@@ -52,19 +53,27 @@ Persist.prototype.save = function (callback) {
       	console.log('document collection was stored: ' + value.length);
       	callback(null, value); 
   	}, function(err) {
-      	console.error('document collection store errored: ' +  error);
+      	console.error('document collection store errored: ' +  err);
       	callback(err, null) 
   	});
 }
 
 
-Persist.prototype.load = function (callback) {
+Persist.prototype.load = function (options, callback) {
+    options = options || {};
+    options.loadOnlyData = options.loadOnlyData || false;
+    
   	var self = this,
 		name = this._getName();
 
   	localforage.getItem(name).then(function(pack) {
-    	console.log('document collection was restored: ' + pack.items.length);
-    	self.fromJSON(pack);
+        pack = pack || {items: []}
+        if(options.loadOnlyData === true){
+           self.dataFromJSON(pack);
+        }else{
+           self.fromJSON(pack); 
+        }
+        console.log('document collection was restored: ' + pack.items.length);
     	callback(null, pack.items) 
   	}, function(err) {
       	console.error('document collection restored errored: ' +  error);
@@ -97,9 +106,16 @@ Persist.prototype.fromJSON = function ( json ) {
     this.index.fromJSON( json );
 }
 
+
+Persist.prototype.dataFromJSON = function ( json ) {
+    this.index.dataFromJSON( json );
+}
+
+
 Persist.prototype._getName = function () {
 	return (this.options.name)? this.options.name + '-documents' : 'documents';
 }
+
 
 
 
