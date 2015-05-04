@@ -1,6 +1,6 @@
 {
   "name": "mani",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pure javascript search - browser and node.js",
   "main": "lib/index.js",
   "scripts": {
