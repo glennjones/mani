@@ -74,24 +74,26 @@ Persist.prototype.load = function (options, callback) {
            self.fromJSON(pack); 
         }
         console.log('document collection was restored: ' + pack.items.length);
-    	callback(null, pack.items) 
+    	callback(null, pack.items);
   	}, function(err) {
-      	console.error('document collection restored errored: ' +  error);
-      	callback(err, null) 
+      	console.error('document collection restore errored: ' +  err);
+      	callback(err, null); 
   	});
 }
 
 
 
 Persist.prototype.removeAll = function (callback) {
-  var name = this._getName();
+  var self = this,
+      name = this._getName();
 
   localforage.removeItem(name).then(function() {
+      self.index.removeAll(function(){});
       console.log('document collection was removed')
-      callback(null, []) 
+      callback(null, []);
   }, function(err) {
-      console.error('document collection remove errored: ' +  error);
-      callback(err, null) 
+      console.error('document collection remove errored: ' +  err);
+      callback(err, null); 
   });
 
 }
@@ -114,6 +116,28 @@ Persist.prototype.dataFromJSON = function ( json ) {
 
 Persist.prototype._getName = function () {
 	return (this.options.name)? this.options.name + '-documents' : 'documents';
+}
+
+
+Persist.prototype.setConfig = function (name, obj, callback) {
+    localforage.setItem(name, obj).then(function(obj) {
+      	console.log('config object was stored: ' + name);
+      	callback(null, obj); 
+  	}, function(err) {
+      	console.error('config object store errored: ' +  err);
+      	callback(err, null);
+  	});
+}
+
+
+Persist.prototype.getConfig = function (name, callback) {
+    localforage.getItem(name).then(function(obj) {
+        console.log('config object was restored: ' + obj);
+    	callback(null, obj);
+  	}, function(err) {
+      	console.error('config object restore errored: ' +  err);
+      	callback(err, null); 
+  	});
 }
 
 

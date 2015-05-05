@@ -270,6 +270,9 @@ FreeText.prototype._flatten = function ( item ) {
 		this.options.text.forEach(function(prop, i) {
 			var val = utilities.reach(item, prop.path);
 			if(val){
+				if(Array.isArray(val)){
+					val = val.join(' ');
+				}
 				out['p'+i] = val;
 			} 
 		})
@@ -419,6 +422,9 @@ Geo.prototype._flatten = function ( item ) {
 	    out.latitude = this._getFloat( utilities.reach(item, utilities.reach(this, 'options.geo.point.latitudePath')) );
         out.longitude = this._getFloat( utilities.reach(item, utilities.reach(this, 'options.geo.point.longitudePath')) );
 	}
+	if(out.latitude === undefined || out.longitude === undefined){
+		return null;
+	}
 	return out;
 }
 
@@ -465,8 +471,13 @@ Geo.prototype.removeAll = function () {
 
 // add document to collection
 Geo.prototype.add = function (doc) {
-	this.items.push(this._flatten(doc));
-	return doc;
+	var flat = this._flatten(doc);
+	if(flat !== null){
+		this.items.push(this._flatten(doc));
+		return doc;
+	}else{
+		return null;
+	}
 }
 
 
@@ -612,8 +623,6 @@ Mani.Index.prototype.add = function (doc, options) {
 		return null;
 	}
 }
-
-
 
 
 Mani.Index.prototype.removeAll = function (callback) {
