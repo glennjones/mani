@@ -635,7 +635,7 @@ Mani.Index.prototype.removeAll = function (callback) {
 	this._geo.removeAll();
 
 	this.eventEmitter.emit('removeAll', itemsRemoved, 'removed', this);
-	callback(err, itemsRemoved);
+	callback(null, itemsRemoved);
 
 }
 
