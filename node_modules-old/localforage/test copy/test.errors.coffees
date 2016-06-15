@@ -1,0 +1,74 @@
+'use strict'
+
+casper.test.begin "Testing error handling", (test) ->
+  casper.start "#{casper.TEST_URL}#{casper.URL}.html", ->
+    test.info "Test error handling using callbacks"
+
+    @evaluate ->
+      request = new XMLHttpRequest()
+
+      # Let's get the first user's photo.
+      request.open "GET", "photo.jpg", true
+      request.responseType = "arraybuffer"
+
+      __utils__.echo localforage.driver()
+
+      # When the AJAX state changes, save the photo locally.
+      request.addEventListener "readystatechange", ->
+        if request.readyState == 4 # readyState DONE
+          for i in [1..1000] by 1
+            return if window._myError
+            localforage.setItem("array #{i}", request.response).then (value) ->
+              return
+            , (error) ->
+              window._myError = error
+              __utils__.findOne('.status').id = 'inserted-blob'
+
+      request.send()
+
+    @waitForSelector '#inserted-blob', ->
+      test.assertEval ->
+        window._myError isnt undefined
+      , "Saving too much data rejects a Promise"
+
+      test.assertEval ->
+        window._myError.message isnt undefined and
+        window._myError.originalError isnt undefined
+      , "Promise rejection should return an Error object"
+    # , null, 50000
+
+  # casper.then ->
+  #   @evaluate ->
+  #     request = new XMLHttpRequest()
+
+  #     # Let's get the first user's photo.
+  #     request.open "GET", "photo.jpg", true
+  #     request.responseType = "arraybuffer"
+
+  #     # When the AJAX state changes, save the photo locally.
+  #     request.addEventListener "readystatechange", ->
+  #       if request.readyState == 4 # readyState DONE
+  #         for i in [1..100] by 1
+  #           localforage.setItem("array #{i}", request.response).then (value) ->
+  #             return
+  #           , (error) ->
+  #             window._myError = error
+  #             __utils__.findOne('.status').id = 'inserted-blob'
+  #           count = count + 1
+
+  #     request.send()
+
+  #   @waitForSelector '#inserted-blob', ->
+  #     test.assertEval ->
+  #       window._myError isnt undefined
+  #     , "All err"
+  #   , null, 5000
+
+  casper.then ->
+    @evaluate ->
+      localforage.clear()
+
+  casper.wait 300
+
+  casper.run ->
+    test.done()

@@ -1,0 +1,28 @@
+'use strict'
+
+casper.test.begin "Testing localforage browserify compatibility", (test) ->
+  casper.start "#{casper.TEST_URL}test.browserify.html", ->
+    test.info "Test API is intact in browserify"
+
+    # Make sure Promises are included in the browserify version.
+    test.assertEval ->
+      typeof window.Promise is 'function'
+    , "Promise API is available (if missing, run `npm install`?)"
+
+    test.assertEval ->
+      typeof _localforageBrowserify.driver is 'function' and
+      typeof _localforageBrowserify._initStorage is 'function' and
+      typeof _localforageBrowserify.getItem is 'function' and
+      typeof _localforageBrowserify.setItem is 'function' and
+      typeof _localforageBrowserify.clear is 'function' and
+      typeof _localforageBrowserify.length is 'function' and
+      typeof _localforageBrowserify.removeItem is 'function' and
+      typeof _localforageBrowserify.key is 'function'
+    , "localforage is available in browserify"
+
+    test.assertEval ->
+      _localforageBrowserify.getItem('something').then isnt undefined
+    , "browserify version returns a promise"
+
+  casper.run ->
+    test.done()

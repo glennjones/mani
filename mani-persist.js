@@ -144,296 +144,7 @@ Persist.prototype.getConfig = function (name, callback) {
 
 
 module.exports = Persist;
-},{"localforage":8}],2:[function(require,module,exports){
-'use strict';
-
-var asap = require('asap')
-
-module.exports = Promise
-function Promise(fn) {
-  if (typeof this !== 'object') throw new TypeError('Promises must be constructed via new')
-  if (typeof fn !== 'function') throw new TypeError('not a function')
-  var state = null
-  var value = null
-  var deferreds = []
-  var self = this
-
-  this.then = function(onFulfilled, onRejected) {
-    return new Promise(function(resolve, reject) {
-      handle(new Handler(onFulfilled, onRejected, resolve, reject))
-    })
-  }
-
-  function handle(deferred) {
-    if (state === null) {
-      deferreds.push(deferred)
-      return
-    }
-    asap(function() {
-      var cb = state ? deferred.onFulfilled : deferred.onRejected
-      if (cb === null) {
-        (state ? deferred.resolve : deferred.reject)(value)
-        return
-      }
-      var ret
-      try {
-        ret = cb(value)
-      }
-      catch (e) {
-        deferred.reject(e)
-        return
-      }
-      deferred.resolve(ret)
-    })
-  }
-
-  function resolve(newValue) {
-    try { //Promise Resolution Procedure: https://github.com/promises-aplus/promises-spec#the-promise-resolution-procedure
-      if (newValue === self) throw new TypeError('A promise cannot be resolved with itself.')
-      if (newValue && (typeof newValue === 'object' || typeof newValue === 'function')) {
-        var then = newValue.then
-        if (typeof then === 'function') {
-          doResolve(then.bind(newValue), resolve, reject)
-          return
-        }
-      }
-      state = true
-      value = newValue
-      finale()
-    } catch (e) { reject(e) }
-  }
-
-  function reject(newValue) {
-    state = false
-    value = newValue
-    finale()
-  }
-
-  function finale() {
-    for (var i = 0, len = deferreds.length; i < len; i++)
-      handle(deferreds[i])
-    deferreds = null
-  }
-
-  doResolve(fn, resolve, reject)
-}
-
-
-function Handler(onFulfilled, onRejected, resolve, reject){
-  this.onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : null
-  this.onRejected = typeof onRejected === 'function' ? onRejected : null
-  this.resolve = resolve
-  this.reject = reject
-}
-
-/**
- * Take a potentially misbehaving resolver function and make sure
- * onFulfilled and onRejected are only called once.
- *
- * Makes no guarantees about asynchrony.
- */
-function doResolve(fn, onFulfilled, onRejected) {
-  var done = false;
-  try {
-    fn(function (value) {
-      if (done) return
-      done = true
-      onFulfilled(value)
-    }, function (reason) {
-      if (done) return
-      done = true
-      onRejected(reason)
-    })
-  } catch (ex) {
-    if (done) return
-    done = true
-    onRejected(ex)
-  }
-}
-
-},{"asap":4}],3:[function(require,module,exports){
-'use strict';
-
-//This file contains then/promise specific extensions to the core promise API
-
-var Promise = require('./core.js')
-var asap = require('asap')
-
-module.exports = Promise
-
-/* Static Functions */
-
-function ValuePromise(value) {
-  this.then = function (onFulfilled) {
-    if (typeof onFulfilled !== 'function') return this
-    return new Promise(function (resolve, reject) {
-      asap(function () {
-        try {
-          resolve(onFulfilled(value))
-        } catch (ex) {
-          reject(ex);
-        }
-      })
-    })
-  }
-}
-ValuePromise.prototype = Object.create(Promise.prototype)
-
-var TRUE = new ValuePromise(true)
-var FALSE = new ValuePromise(false)
-var NULL = new ValuePromise(null)
-var UNDEFINED = new ValuePromise(undefined)
-var ZERO = new ValuePromise(0)
-var EMPTYSTRING = new ValuePromise('')
-
-Promise.resolve = function (value) {
-  if (value instanceof Promise) return value
-
-  if (value === null) return NULL
-  if (value === undefined) return UNDEFINED
-  if (value === true) return TRUE
-  if (value === false) return FALSE
-  if (value === 0) return ZERO
-  if (value === '') return EMPTYSTRING
-
-  if (typeof value === 'object' || typeof value === 'function') {
-    try {
-      var then = value.then
-      if (typeof then === 'function') {
-        return new Promise(then.bind(value))
-      }
-    } catch (ex) {
-      return new Promise(function (resolve, reject) {
-        reject(ex)
-      })
-    }
-  }
-
-  return new ValuePromise(value)
-}
-
-Promise.from = Promise.cast = function (value) {
-  var err = new Error('Promise.from and Promise.cast are deprecated, use Promise.resolve instead')
-  err.name = 'Warning'
-  console.warn(err.stack)
-  return Promise.resolve(value)
-}
-
-Promise.denodeify = function (fn, argumentCount) {
-  argumentCount = argumentCount || Infinity
-  return function () {
-    var self = this
-    var args = Array.prototype.slice.call(arguments)
-    return new Promise(function (resolve, reject) {
-      while (args.length && args.length > argumentCount) {
-        args.pop()
-      }
-      args.push(function (err, res) {
-        if (err) reject(err)
-        else resolve(res)
-      })
-      fn.apply(self, args)
-    })
-  }
-}
-Promise.nodeify = function (fn) {
-  return function () {
-    var args = Array.prototype.slice.call(arguments)
-    var callback = typeof args[args.length - 1] === 'function' ? args.pop() : null
-    try {
-      return fn.apply(this, arguments).nodeify(callback)
-    } catch (ex) {
-      if (callback === null || typeof callback == 'undefined') {
-        return new Promise(function (resolve, reject) { reject(ex) })
-      } else {
-        asap(function () {
-          callback(ex)
-        })
-      }
-    }
-  }
-}
-
-Promise.all = function () {
-  var calledWithArray = arguments.length === 1 && Array.isArray(arguments[0])
-  var args = Array.prototype.slice.call(calledWithArray ? arguments[0] : arguments)
-
-  if (!calledWithArray) {
-    var err = new Error('Promise.all should be called with a single array, calling it with multiple arguments is deprecated')
-    err.name = 'Warning'
-    console.warn(err.stack)
-  }
-
-  return new Promise(function (resolve, reject) {
-    if (args.length === 0) return resolve([])
-    var remaining = args.length
-    function res(i, val) {
-      try {
-        if (val && (typeof val === 'object' || typeof val === 'function')) {
-          var then = val.then
-          if (typeof then === 'function') {
-            then.call(val, function (val) { res(i, val) }, reject)
-            return
-          }
-        }
-        args[i] = val
-        if (--remaining === 0) {
-          resolve(args);
-        }
-      } catch (ex) {
-        reject(ex)
-      }
-    }
-    for (var i = 0; i < args.length; i++) {
-      res(i, args[i])
-    }
-  })
-}
-
-Promise.reject = function (value) {
-  return new Promise(function (resolve, reject) { 
-    reject(value);
-  });
-}
-
-Promise.race = function (values) {
-  return new Promise(function (resolve, reject) { 
-    values.forEach(function(value){
-      Promise.resolve(value).then(resolve, reject);
-    })
-  });
-}
-
-/* Prototype Methods */
-
-Promise.prototype.done = function (onFulfilled, onRejected) {
-  var self = arguments.length ? this.then.apply(this, arguments) : this
-  self.then(null, function (err) {
-    asap(function () {
-      throw err
-    })
-  })
-}
-
-Promise.prototype.nodeify = function (callback) {
-  if (typeof callback != 'function') return this
-
-  this.then(function (value) {
-    asap(function () {
-      callback(null, value)
-    })
-  }, function (err) {
-    asap(function () {
-      callback(err)
-    })
-  })
-}
-
-Promise.prototype['catch'] = function (onRejected) {
-  return this.then(null, onRejected);
-}
-
-},{"./core.js":2,"asap":4}],4:[function(require,module,exports){
+},{"localforage":6}],2:[function(require,module,exports){
 (function (process){
 
 // Use the fastest possible means to execute a task in a future turn
@@ -550,7 +261,7 @@ module.exports = asap;
 
 
 }).call(this,require('_process'))
-},{"_process":10}],5:[function(require,module,exports){
+},{"_process":10}],3:[function(require,module,exports){
 // Some code originally from async_storage.js in
 // [Gaia](https://github.com/mozilla-b2g/gaia).
 (function() {
@@ -559,7 +270,7 @@ module.exports = asap;
     // Originally found in https://github.com/mozilla-b2g/gaia/blob/e8f624e4cc9ea945727278039b3bc9bcb9f8667a/shared/js/async_storage.js
 
     // Promises!
-    var Promise = (typeof module !== 'undefined' && module.exports) ?
+    var Promise = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined') ?
                   require('promise') : this.Promise;
 
     // Initialize IndexedDB; fall back to vendor-prefixed versions if needed.
@@ -570,6 +281,159 @@ module.exports = asap;
     // If IndexedDB isn't available, we get outta here!
     if (!indexedDB) {
         return;
+    }
+
+    var DETECT_BLOB_SUPPORT_STORE = 'local-forage-detect-blob-support';
+    var supportsBlobs;
+
+    // Abstracts constructing a Blob object, so it also works in older
+    // browsers that don't support the native Blob constructor. (i.e.
+    // old QtWebKit versions, at least).
+    function _createBlob(parts, properties) {
+        parts = parts || [];
+        properties = properties || {};
+        try {
+            return new Blob(parts, properties);
+        } catch (e) {
+            if (e.name !== 'TypeError') {
+                throw e;
+            }
+            var BlobBuilder = window.BlobBuilder ||
+                window.MSBlobBuilder ||
+                window.MozBlobBuilder ||
+                window.WebKitBlobBuilder;
+            var builder = new BlobBuilder();
+            for (var i = 0; i < parts.length; i += 1) {
+                builder.append(parts[i]);
+            }
+            return builder.getBlob(properties.type);
+        }
+    }
+
+    // Transform a binary string to an array buffer, because otherwise
+    // weird stuff happens when you try to work with the binary string directly.
+    // It is known.
+    // From http://stackoverflow.com/questions/14967647/ (continues on next line)
+    // encode-decode-image-with-base64-breaks-image (2013-04-21)
+    function _binStringToArrayBuffer(bin) {
+        var length = bin.length;
+        var buf = new ArrayBuffer(length);
+        var arr = new Uint8Array(buf);
+        for (var i = 0; i < length; i++) {
+            arr[i] = bin.charCodeAt(i);
+        }
+        return buf;
+    }
+
+    // Fetch a blob using ajax. This reveals bugs in Chrome < 43.
+    // For details on all this junk:
+    // https://github.com/nolanlawson/state-of-binary-data-in-the-browser#readme
+    function _blobAjax(url) {
+        return new Promise(function(resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url);
+            xhr.withCredentials = true;
+            xhr.responseType = 'arraybuffer';
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState !== 4) {
+                    return;
+                }
+                if (xhr.status === 200) {
+                    return resolve({
+                        response: xhr.response,
+                        type: xhr.getResponseHeader('Content-Type')
+                    });
+                }
+                reject({status: xhr.status, response: xhr.response});
+            };
+            xhr.send();
+        });
+    }
+
+    //
+    // Detect blob support. Chrome didn't support it until version 38.
+    // In version 37 they had a broken version where PNGs (and possibly
+    // other binary types) aren't stored correctly, because when you fetch
+    // them, the content type is always null.
+    //
+    // Furthermore, they have some outstanding bugs where blobs occasionally
+    // are read by FileReader as null, or by ajax as 404s.
+    //
+    // Sadly we use the 404 bug to detect the FileReader bug, so if they
+    // get fixed independently and released in different versions of Chrome,
+    // then the bug could come back. So it's worthwhile to watch these issues:
+    // 404 bug: https://code.google.com/p/chromium/issues/detail?id=447916
+    // FileReader bug: https://code.google.com/p/chromium/issues/detail?id=447836
+    //
+    function _checkBlobSupportWithoutCaching(idb) {
+        return new Promise(function(resolve, reject) {
+            var blob = _createBlob([''], {type: 'image/png'});
+            var txn = idb.transaction([DETECT_BLOB_SUPPORT_STORE], 'readwrite');
+            txn.objectStore(DETECT_BLOB_SUPPORT_STORE).put(blob, 'key');
+            txn.oncomplete = function() {
+                // have to do it in a separate transaction, else the correct
+                // content type is always returned
+                var blobTxn = idb.transaction([DETECT_BLOB_SUPPORT_STORE],
+                    'readwrite');
+                var getBlobReq = blobTxn.objectStore(
+                    DETECT_BLOB_SUPPORT_STORE).get('key');
+                getBlobReq.onerror = reject;
+                getBlobReq.onsuccess = function(e) {
+
+                    var storedBlob = e.target.result;
+                    var url = URL.createObjectURL(storedBlob);
+
+                    _blobAjax(url).then(function(res) {
+                        resolve(!!(res && res.type === 'image/png'));
+                    }, function() {
+                        resolve(false);
+                    }).then(function() {
+                        URL.revokeObjectURL(url);
+                    });
+                };
+            };
+        }).catch(function() {
+            return false; // error, so assume unsupported
+        });
+    }
+
+    function _checkBlobSupport(idb) {
+        if (typeof supportsBlobs === 'boolean') {
+            return Promise.resolve(supportsBlobs);
+        }
+        return _checkBlobSupportWithoutCaching(idb).then(function(value) {
+            supportsBlobs = value;
+            return supportsBlobs;
+        });
+    }
+
+    // encode a blob for indexeddb engines that don't support blobs
+    function _encodeBlob(blob) {
+        return new Promise(function(resolve, reject) {
+            var reader = new FileReader();
+            reader.onerror = reject;
+            reader.onloadend = function(e) {
+                var base64 = btoa(e.target.result || '');
+                resolve({
+                    __local_forage_encoded_blob: true,
+                    data: base64,
+                    type: blob.type
+                });
+            };
+            reader.readAsBinaryString(blob);
+        });
+    }
+
+    // decode an encoded blob
+    function _decodeBlob(encodedBlob) {
+        var arrayBuff = _binStringToArrayBuffer(atob(encodedBlob.data));
+        return _createBlob([arrayBuff], { type: encodedBlob.type});
+    }
+
+    // is this one of our fancy encoded blobs?
+    function _isEncodedBlob(value) {
+        return value && value.__local_forage_encoded_blob;
     }
 
     // Open the IndexedDB database (automatically creates one if one didn't
@@ -591,9 +455,13 @@ module.exports = asap;
             openreq.onerror = function() {
                 reject(openreq.error);
             };
-            openreq.onupgradeneeded = function() {
+            openreq.onupgradeneeded = function(e) {
                 // First time setup: create an empty object store
                 openreq.result.createObjectStore(dbInfo.storeName);
+                if (e.oldVersion <= 1) {
+                    // added when support for blob shims was added
+                    openreq.result.createObjectStore(DETECT_BLOB_SUPPORT_STORE);
+                }
             };
             openreq.onsuccess = function() {
                 dbInfo.db = openreq.result;
@@ -625,7 +493,9 @@ module.exports = asap;
                     if (value === undefined) {
                         value = null;
                     }
-
+                    if (_isEncodedBlob(value)) {
+                        value = _decodeBlob(value);
+                    }
                     resolve(value);
                 };
 
@@ -635,7 +505,7 @@ module.exports = asap;
             }).catch(reject);
         });
 
-        executeDeferedCallback(promise, callback);
+        executeCallback(promise, callback);
         return promise;
     }
 
@@ -656,7 +526,12 @@ module.exports = asap;
                     var cursor = req.result;
 
                     if (cursor) {
-                        var result = iterator(cursor.value, cursor.key, iterationNumber++);
+                        var value = cursor.value;
+                        if (_isEncodedBlob(value)) {
+                            value = _decodeBlob(value);
+                        }
+                        var result = iterator(value, cursor.key,
+                                              iterationNumber++);
 
                         if (result !== void(0)) {
                             resolve(result);
@@ -674,7 +549,7 @@ module.exports = asap;
             }).catch(reject);
         });
 
-        executeDeferedCallback(promise, callback);
+        executeCallback(promise, callback);
 
         return promise;
     }
@@ -690,8 +565,16 @@ module.exports = asap;
         }
 
         var promise = new Promise(function(resolve, reject) {
+            var dbInfo;
             self.ready().then(function() {
-                var dbInfo = self._dbInfo;
+                dbInfo = self._dbInfo;
+                return _checkBlobSupport(dbInfo.db);
+            }).then(function(blobSupport) {
+                if (!blobSupport && value instanceof Blob) {
+                    return _encodeBlob(value);
+                }
+                return value;
+            }).then(function(value) {
                 var transaction = dbInfo.db.transaction(dbInfo.storeName, 'readwrite');
                 var store = transaction.objectStore(dbInfo.storeName);
 
@@ -718,12 +601,13 @@ module.exports = asap;
                     resolve(value);
                 };
                 transaction.onabort = transaction.onerror = function() {
-                    reject(req.error);
+                    var err = req.error ? req.error : req.transaction.error;
+                    reject(err);
                 };
             }).catch(reject);
         });
 
-        executeDeferedCallback(promise, callback);
+        executeCallback(promise, callback);
         return promise;
     }
 
@@ -757,19 +641,16 @@ module.exports = asap;
                     reject(req.error);
                 };
 
-                // The request will be aborted if we've exceeded our storage
-                // space. In this case, we will reject with a specific
-                // "QuotaExceededError".
-                transaction.onabort = function(event) {
-                    var error = event.target.error;
-                    if (error === 'QuotaExceededError') {
-                        reject(error);
-                    }
+                // The request will be also be aborted if we've exceeded our storage
+                // space.
+                transaction.onabort = function() {
+                    var err = req.error ? req.error : req.transaction.error;
+                    reject(err);
                 };
             }).catch(reject);
         });
 
-        executeDeferedCallback(promise, callback);
+        executeCallback(promise, callback);
         return promise;
     }
 
@@ -788,12 +669,13 @@ module.exports = asap;
                 };
 
                 transaction.onabort = transaction.onerror = function() {
-                    reject(req.error);
+                    var err = req.error ? req.error : req.transaction.error;
+                    reject(err);
                 };
             }).catch(reject);
         });
 
-        executeDeferedCallback(promise, callback);
+        executeCallback(promise, callback);
         return promise;
     }
 
@@ -918,29 +800,6 @@ module.exports = asap;
         }
     }
 
-    function executeDeferedCallback(promise, callback) {
-        if (callback) {
-            promise.then(function(result) {
-                deferCallback(callback, result);
-            }, function(error) {
-                callback(error);
-            });
-        }
-    }
-
-    // Under Chrome the callback is called before the changes (save, clear)
-    // are actually made. So we use a defer function which wait that the
-    // call stack to be empty.
-    // For more info : https://github.com/mozilla/localForage/issues/175
-    // Pull request : https://github.com/mozilla/localForage/pull/178
-    function deferCallback(callback, result) {
-        if (callback) {
-            return setTimeout(function() {
-                return callback(null, result);
-            }, 0);
-        }
-    }
-
     var asyncStorage = {
         _driver: 'asyncStorage',
         _initStorage: _initStorage,
@@ -954,7 +813,7 @@ module.exports = asap;
         keys: keys
     };
 
-    if (typeof module !== 'undefined' && module.exports) {
+    if (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined') {
         module.exports = asyncStorage;
     } else if (typeof define === 'function' && define.amd) {
         define('asyncStorage', function() {
@@ -965,7 +824,7 @@ module.exports = asap;
     }
 }).call(window);
 
-},{"promise":3}],6:[function(require,module,exports){
+},{"promise":9}],4:[function(require,module,exports){
 // If IndexedDB isn't available, we'll fall back to localStorage.
 // Note that this will have considerable performance and storage
 // side-effects (all data will be serialized on save and only data that
@@ -974,7 +833,7 @@ module.exports = asap;
     'use strict';
 
     // Promises!
-    var Promise = (typeof module !== 'undefined' && module.exports) ?
+    var Promise = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined') ?
                   require('promise') : this.Promise;
 
     var globalObject = this;
@@ -1011,7 +870,7 @@ module.exports = asap;
 
     // Find out what kind of module setup we have; if none, we'll just attach
     // localForage to the main window.
-    if (typeof module !== 'undefined' && module.exports) {
+    if (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined') {
         moduleType = ModuleType.EXPORT;
     } else if (typeof define === 'function' && define.amd) {
         moduleType = ModuleType.DEFINE;
@@ -1111,8 +970,19 @@ module.exports = asap;
             var keyPrefixLength = keyPrefix.length;
             var length = localStorage.length;
 
+            // We use a dedicated iterator instead of the `i` variable below
+            // so other keys we fetch in localStorage aren't counted in
+            // the `iterationNumber` argument passed to the `iterate()`
+            // callback.
+            //
+            // See: github.com/mozilla/localForage/pull/435#discussion_r38061530
+            var iterationNumber = 1;
+
             for (var i = 0; i < length; i++) {
                 var key = localStorage.key(i);
+                if (key.indexOf(keyPrefix) !== 0) {
+                    continue;
+                }
                 var value = localStorage.getItem(key);
 
                 // If a result was found, parse it from the serialized
@@ -1123,7 +993,8 @@ module.exports = asap;
                     value = serializer.deserialize(value);
                 }
 
-                value = iterator(value, key.substring(keyPrefixLength), i + 1);
+                value = iterator(value, key.substring(keyPrefixLength),
+                                 iterationNumber++);
 
                 if (value !== void(0)) {
                     return value;
@@ -1296,7 +1167,7 @@ module.exports = asap;
     }
 }).call(window);
 
-},{"./../utils/serializer":9,"promise":3}],7:[function(require,module,exports){
+},{"./../utils/serializer":7,"promise":9}],5:[function(require,module,exports){
 /*
  * Includes code from:
  *
@@ -1310,7 +1181,7 @@ module.exports = asap;
     'use strict';
 
     // Promises!
-    var Promise = (typeof module !== 'undefined' && module.exports) ?
+    var Promise = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined') ?
                   require('promise') : this.Promise;
 
     var globalObject = this;
@@ -1334,7 +1205,7 @@ module.exports = asap;
 
     // Find out what kind of module setup we have; if none, we'll just attach
     // localForage to the main window.
-    if (typeof module !== 'undefined' && module.exports) {
+    if (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined') {
         moduleType = ModuleType.EXPORT;
     } else if (typeof define === 'function' && define.amd) {
         moduleType = ModuleType.DEFINE;
@@ -1519,8 +1390,9 @@ module.exports = asap;
                             }, function(t, error) {
                                 reject(error);
                             });
-                        }, function(sqlError) { // The transaction failed; check
-                                                // to see if it's a quota error.
+                        }, function(sqlError) {
+                            // The transaction failed; check
+                            // to see if it's a quota error.
                             if (sqlError.code === sqlError.QUOTA_ERR) {
                                 // We reject the callback outright for now, but
                                 // it's worth trying to re-run the transaction.
@@ -1556,8 +1428,8 @@ module.exports = asap;
                 var dbInfo = self._dbInfo;
                 dbInfo.db.transaction(function(t) {
                     t.executeSql('DELETE FROM ' + dbInfo.storeName +
-                                 ' WHERE key = ?', [key], function() {
-
+                                 ' WHERE key = ?', [key],
+                                 function() {
                         resolve();
                     }, function(t, error) {
 
@@ -1714,12 +1586,13 @@ module.exports = asap;
     }
 }).call(window);
 
-},{"./../utils/serializer":9,"promise":3}],8:[function(require,module,exports){
+},{"./../utils/serializer":7,"promise":9}],6:[function(require,module,exports){
 (function() {
     'use strict';
 
     // Promises!
-    var Promise = (typeof module !== 'undefined' && module.exports) ?
+    var Promise = (typeof module !== 'undefined' && module.exports &&
+                   typeof require !== 'undefined') ?
                   require('promise') : this.Promise;
 
     // Custom drivers are stored here when `defineDriver()` is called.
@@ -1772,7 +1645,7 @@ module.exports = asap;
 
     // Find out what kind of module setup we have; if none, we'll just attach
     // localForage to the main window.
-    if (typeof module !== 'undefined' && module.exports) {
+    if (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined') {
         moduleType = ModuleType.EXPORT;
     } else if (typeof define === 'function' && define.amd) {
         moduleType = ModuleType.DEFINE;
@@ -2043,43 +1916,39 @@ module.exports = asap;
             self._ready = null;
 
             if (isLibraryDriver(driverName)) {
-                // We allow localForage to be declared as a module or as a
-                // library available without AMD/require.js.
-                if (moduleType === ModuleType.DEFINE) {
-                    require([driverName], function(lib) {
-                        self._extend(lib);
-
-                        resolve();
-                    });
-
-                    return;
-                } else if (moduleType === ModuleType.EXPORT) {
-                    // Making it browserify friendly
-                    var driver;
-                    switch (driverName) {
-                        case self.INDEXEDDB:
-                            driver = require('./drivers/indexeddb');
-                            break;
-                        case self.LOCALSTORAGE:
-                            driver = require('./drivers/localstorage');
-                            break;
-                        case self.WEBSQL:
-                            driver = require('./drivers/websql');
+                var driverPromise = new Promise(function(resolve/*, reject*/) {
+                    // We allow localForage to be declared as a module or as a
+                    // library available without AMD/require.js.
+                    if (moduleType === ModuleType.DEFINE) {
+                        require([driverName], resolve);
+                    } else if (moduleType === ModuleType.EXPORT) {
+                        // Making it browserify friendly
+                        switch (driverName) {
+                            case self.INDEXEDDB:
+                                resolve(require('./drivers/indexeddb'));
+                                break;
+                            case self.LOCALSTORAGE:
+                                resolve(require('./drivers/localstorage'));
+                                break;
+                            case self.WEBSQL:
+                                resolve(require('./drivers/websql'));
+                                break;
+                        }
+                    } else {
+                        resolve(globalObject[driverName]);
                     }
-
+                });
+                driverPromise.then(function(driver) {
                     self._extend(driver);
-                } else {
-                    self._extend(globalObject[driverName]);
-                }
+                    resolve();
+                });
             } else if (CustomDrivers[driverName]) {
                 self._extend(CustomDrivers[driverName]);
+                resolve();
             } else {
                 self._driverSet = Promise.reject(error);
                 reject(error);
-                return;
             }
-
-            resolve();
         });
 
         function setDriverToConfig() {
@@ -2136,7 +2005,7 @@ module.exports = asap;
     }
 }).call(window);
 
-},{"./drivers/indexeddb":5,"./drivers/localstorage":6,"./drivers/websql":7,"promise":3}],9:[function(require,module,exports){
+},{"./drivers/indexeddb":3,"./drivers/localstorage":4,"./drivers/websql":5,"promise":9}],7:[function(require,module,exports){
 (function() {
     'use strict';
 
@@ -2144,6 +2013,9 @@ module.exports = asap;
     // it to Base64, so this is how we store it to prevent very strange errors with less
     // verbose ways of binary <-> string data storage.
     var BASE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+    var BLOB_TYPE_PREFIX = '~~local_forage_type~';
+    var BLOB_TYPE_PREFIX_REGEX = /^~~local_forage_type~([^~]+)~/;
 
     var SERIALIZED_MARKER = '__lfsc__:';
     var SERIALIZED_MARKER_LENGTH = SERIALIZED_MARKER.length;
@@ -2162,6 +2034,37 @@ module.exports = asap;
     var TYPE_FLOAT64ARRAY = 'fl64';
     var TYPE_SERIALIZED_MARKER_LENGTH = SERIALIZED_MARKER_LENGTH +
                                         TYPE_ARRAYBUFFER.length;
+
+    // Get out of our habit of using `window` inline, at least.
+    var globalObject = this;
+
+    // Abstracts constructing a Blob object, so it also works in older
+    // browsers that don't support the native Blob constructor. (i.e.
+    // old QtWebKit versions, at least).
+    function _createBlob(parts, properties) {
+        parts = parts || [];
+        properties = properties || {};
+
+        try {
+            return new Blob(parts, properties);
+        } catch (err) {
+            if (err.name !== 'TypeError') {
+                throw err;
+            }
+
+            var BlobBuilder = globalObject.BlobBuilder ||
+                              globalObject.MSBlobBuilder ||
+                              globalObject.MozBlobBuilder ||
+                              globalObject.WebKitBlobBuilder;
+
+            var builder = new BlobBuilder();
+            for (var i = 0; i < parts.length; i += 1) {
+                builder.append(parts[i]);
+            }
+
+            return builder.getBlob(properties.type);
+        }
+    }
 
     // Serialize a value, afterwards executing a callback (which usually
     // instructs the `setItem()` callback/promise to be executed). This is how
@@ -2219,7 +2122,9 @@ module.exports = asap;
             var fileReader = new FileReader();
 
             fileReader.onload = function() {
-                var str = bufferToString(this.result);
+                // Backwards-compatible prefix for the blob type.
+                var str = BLOB_TYPE_PREFIX + value.type + '~' +
+                    bufferToString(this.result);
 
                 callback(SERIALIZED_MARKER + TYPE_BLOB + str);
             };
@@ -2229,8 +2134,8 @@ module.exports = asap;
             try {
                 callback(JSON.stringify(value));
             } catch (e) {
-                window.console.error("Couldn't convert value into a JSON " +
-                                     'string: ', value);
+                console.error("Couldn't convert value into a JSON string: ",
+                              value);
 
                 callback(null, e);
             }
@@ -2261,6 +2166,14 @@ module.exports = asap;
         var type = value.substring(SERIALIZED_MARKER_LENGTH,
                                    TYPE_SERIALIZED_MARKER_LENGTH);
 
+        var blobType;
+        // Backwards-compatible blob type serialization strategy.
+        // DBs created with older versions of localForage will simply not have the blob type.
+        if (type === TYPE_BLOB && BLOB_TYPE_PREFIX_REGEX.test(serializedString)) {
+            var matcher = serializedString.match(BLOB_TYPE_PREFIX_REGEX);
+            blobType = matcher[1];
+            serializedString = serializedString.substring(matcher[0].length);
+        }
         var buffer = stringToBuffer(serializedString);
 
         // Return the right type based on the code/type set during
@@ -2269,7 +2182,7 @@ module.exports = asap;
             case TYPE_ARRAYBUFFER:
                 return buffer;
             case TYPE_BLOB:
-                return new Blob([buffer]);
+                return _createBlob([buffer], {type: blobType});
             case TYPE_INT8ARRAY:
                 return new Int8Array(buffer);
             case TYPE_UINT8ARRAY:
@@ -2357,7 +2270,7 @@ module.exports = asap;
         bufferToString: bufferToString
     };
 
-    if (typeof module !== 'undefined' && module.exports) {
+    if (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined') {
         module.exports = localforageSerializer;
     } else if (typeof define === 'function' && define.amd) {
         define('localforageSerializer', function() {
@@ -2368,7 +2281,296 @@ module.exports = asap;
     }
 }).call(window);
 
-},{}],10:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
+'use strict';
+
+var asap = require('asap')
+
+module.exports = Promise
+function Promise(fn) {
+  if (typeof this !== 'object') throw new TypeError('Promises must be constructed via new')
+  if (typeof fn !== 'function') throw new TypeError('not a function')
+  var state = null
+  var value = null
+  var deferreds = []
+  var self = this
+
+  this.then = function(onFulfilled, onRejected) {
+    return new Promise(function(resolve, reject) {
+      handle(new Handler(onFulfilled, onRejected, resolve, reject))
+    })
+  }
+
+  function handle(deferred) {
+    if (state === null) {
+      deferreds.push(deferred)
+      return
+    }
+    asap(function() {
+      var cb = state ? deferred.onFulfilled : deferred.onRejected
+      if (cb === null) {
+        (state ? deferred.resolve : deferred.reject)(value)
+        return
+      }
+      var ret
+      try {
+        ret = cb(value)
+      }
+      catch (e) {
+        deferred.reject(e)
+        return
+      }
+      deferred.resolve(ret)
+    })
+  }
+
+  function resolve(newValue) {
+    try { //Promise Resolution Procedure: https://github.com/promises-aplus/promises-spec#the-promise-resolution-procedure
+      if (newValue === self) throw new TypeError('A promise cannot be resolved with itself.')
+      if (newValue && (typeof newValue === 'object' || typeof newValue === 'function')) {
+        var then = newValue.then
+        if (typeof then === 'function') {
+          doResolve(then.bind(newValue), resolve, reject)
+          return
+        }
+      }
+      state = true
+      value = newValue
+      finale()
+    } catch (e) { reject(e) }
+  }
+
+  function reject(newValue) {
+    state = false
+    value = newValue
+    finale()
+  }
+
+  function finale() {
+    for (var i = 0, len = deferreds.length; i < len; i++)
+      handle(deferreds[i])
+    deferreds = null
+  }
+
+  doResolve(fn, resolve, reject)
+}
+
+
+function Handler(onFulfilled, onRejected, resolve, reject){
+  this.onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : null
+  this.onRejected = typeof onRejected === 'function' ? onRejected : null
+  this.resolve = resolve
+  this.reject = reject
+}
+
+/**
+ * Take a potentially misbehaving resolver function and make sure
+ * onFulfilled and onRejected are only called once.
+ *
+ * Makes no guarantees about asynchrony.
+ */
+function doResolve(fn, onFulfilled, onRejected) {
+  var done = false;
+  try {
+    fn(function (value) {
+      if (done) return
+      done = true
+      onFulfilled(value)
+    }, function (reason) {
+      if (done) return
+      done = true
+      onRejected(reason)
+    })
+  } catch (ex) {
+    if (done) return
+    done = true
+    onRejected(ex)
+  }
+}
+
+},{"asap":2}],9:[function(require,module,exports){
+'use strict';
+
+//This file contains then/promise specific extensions to the core promise API
+
+var Promise = require('./core.js')
+var asap = require('asap')
+
+module.exports = Promise
+
+/* Static Functions */
+
+function ValuePromise(value) {
+  this.then = function (onFulfilled) {
+    if (typeof onFulfilled !== 'function') return this
+    return new Promise(function (resolve, reject) {
+      asap(function () {
+        try {
+          resolve(onFulfilled(value))
+        } catch (ex) {
+          reject(ex);
+        }
+      })
+    })
+  }
+}
+ValuePromise.prototype = Object.create(Promise.prototype)
+
+var TRUE = new ValuePromise(true)
+var FALSE = new ValuePromise(false)
+var NULL = new ValuePromise(null)
+var UNDEFINED = new ValuePromise(undefined)
+var ZERO = new ValuePromise(0)
+var EMPTYSTRING = new ValuePromise('')
+
+Promise.resolve = function (value) {
+  if (value instanceof Promise) return value
+
+  if (value === null) return NULL
+  if (value === undefined) return UNDEFINED
+  if (value === true) return TRUE
+  if (value === false) return FALSE
+  if (value === 0) return ZERO
+  if (value === '') return EMPTYSTRING
+
+  if (typeof value === 'object' || typeof value === 'function') {
+    try {
+      var then = value.then
+      if (typeof then === 'function') {
+        return new Promise(then.bind(value))
+      }
+    } catch (ex) {
+      return new Promise(function (resolve, reject) {
+        reject(ex)
+      })
+    }
+  }
+
+  return new ValuePromise(value)
+}
+
+Promise.from = Promise.cast = function (value) {
+  var err = new Error('Promise.from and Promise.cast are deprecated, use Promise.resolve instead')
+  err.name = 'Warning'
+  console.warn(err.stack)
+  return Promise.resolve(value)
+}
+
+Promise.denodeify = function (fn, argumentCount) {
+  argumentCount = argumentCount || Infinity
+  return function () {
+    var self = this
+    var args = Array.prototype.slice.call(arguments)
+    return new Promise(function (resolve, reject) {
+      while (args.length && args.length > argumentCount) {
+        args.pop()
+      }
+      args.push(function (err, res) {
+        if (err) reject(err)
+        else resolve(res)
+      })
+      fn.apply(self, args)
+    })
+  }
+}
+Promise.nodeify = function (fn) {
+  return function () {
+    var args = Array.prototype.slice.call(arguments)
+    var callback = typeof args[args.length - 1] === 'function' ? args.pop() : null
+    try {
+      return fn.apply(this, arguments).nodeify(callback)
+    } catch (ex) {
+      if (callback === null || typeof callback == 'undefined') {
+        return new Promise(function (resolve, reject) { reject(ex) })
+      } else {
+        asap(function () {
+          callback(ex)
+        })
+      }
+    }
+  }
+}
+
+Promise.all = function () {
+  var calledWithArray = arguments.length === 1 && Array.isArray(arguments[0])
+  var args = Array.prototype.slice.call(calledWithArray ? arguments[0] : arguments)
+
+  if (!calledWithArray) {
+    var err = new Error('Promise.all should be called with a single array, calling it with multiple arguments is deprecated')
+    err.name = 'Warning'
+    console.warn(err.stack)
+  }
+
+  return new Promise(function (resolve, reject) {
+    if (args.length === 0) return resolve([])
+    var remaining = args.length
+    function res(i, val) {
+      try {
+        if (val && (typeof val === 'object' || typeof val === 'function')) {
+          var then = val.then
+          if (typeof then === 'function') {
+            then.call(val, function (val) { res(i, val) }, reject)
+            return
+          }
+        }
+        args[i] = val
+        if (--remaining === 0) {
+          resolve(args);
+        }
+      } catch (ex) {
+        reject(ex)
+      }
+    }
+    for (var i = 0; i < args.length; i++) {
+      res(i, args[i])
+    }
+  })
+}
+
+Promise.reject = function (value) {
+  return new Promise(function (resolve, reject) { 
+    reject(value);
+  });
+}
+
+Promise.race = function (values) {
+  return new Promise(function (resolve, reject) { 
+    values.forEach(function(value){
+      Promise.resolve(value).then(resolve, reject);
+    })
+  });
+}
+
+/* Prototype Methods */
+
+Promise.prototype.done = function (onFulfilled, onRejected) {
+  var self = arguments.length ? this.then.apply(this, arguments) : this
+  self.then(null, function (err) {
+    asap(function () {
+      throw err
+    })
+  })
+}
+
+Promise.prototype.nodeify = function (callback) {
+  if (typeof callback != 'function') return this
+
+  this.then(function (value) {
+    asap(function () {
+      callback(null, value)
+    })
+  }, function (err) {
+    asap(function () {
+      callback(err)
+    })
+  })
+}
+
+Promise.prototype['catch'] = function (onRejected) {
+  return this.then(null, onRejected);
+}
+
+},{"./core.js":8,"asap":2}],10:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};

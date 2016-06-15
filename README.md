@@ -18,7 +18,7 @@ Mani provides a document based search tool in javascript. It merges together fre
   * ~~typeTo - enforcing the data type of property for comparisons~~
 * GEO search
   * Nearby query/sort
-  * injects distance  
+  * injects distance
 * Facets
 * Pageing and sorting
 * Persistent browser storage
@@ -57,12 +57,12 @@ A code example of setting up a search index, loading 2 documents and search for 
          tags: ['javascript','es6','traceur','babel']
       }
     });
-    
+
      var results = index.search({
         text: 'promises'
      });
 ```
-The free text search uses a list of stop words which you can replaces by a new array of words to the option when setup your index. if you want to remove the stop words just add a blank array. 
+The free text search uses a list of stop words which you can replaces by a new array of words to the option when setup your index. if you want to remove the stop words just add a blank array.
 
 ```javascript
   var options = {
@@ -84,7 +84,7 @@ Search with single query:
     var results = index.search({
         'query': {
           {'article.tags','javascript'}
-      } 
+      }
     })
 ```
 
@@ -94,7 +94,7 @@ Search with two queries:
         'query': {
           {'article.published',true}
           {'article.tags','javascript'}
-      } 
+      }
     })
 ```
 #### Comparison query operators
@@ -104,7 +104,7 @@ Mani provides a number of simple comparison query operators based on manogodb sy
 * '$gte': Greater than or equal - `{query: {'viewed': {'$gte': 1284}}}`
 * '$lt': Less than - `{query: {'viewed': {'$lt': 2000}}}`
 * '$lte': Less than or equal - `{query: {'viewed': {'$lte': 3552}}}`
-* '$exists': Property exists  - `{query: {'viewed': {'$exists': true}}}`  
+* '$exists': Property exists  - `{query: {'viewed': {'$exists': true}}}`
 * '$ne': Not equals - `{query: {'viewed': {'$ne': 3552}}}`
 
 
@@ -119,7 +119,7 @@ Adding latitude and longitude paths to the index schema:
      ],
      'geo': {
           'point': {
-              'latitudePath': 'location.latitude', 
+              'latitudePath': 'location.latitude',
                 'longitudePath': 'location.longitude',
           }
      }
@@ -129,9 +129,9 @@ Adding latitude and longitude paths to the index schema:
 Nearby search join with freetext search for term 'pub':
 ```javascript
     var results = index.search({
-         'text': 'pub', 
+         'text': 'pub',
          'nearby': {
-            'latitude': 52.516272, 
+            'latitude': 52.516272,
             'longitude': 13.377722,
             'offset': 0
          }
@@ -146,7 +146,7 @@ A code example of returning facets from a document set.
 From the documents in a search result:
 ```
     var results = index.search({
-         text: 'promises', 
+         text: 'promises',
          facets: {
             'path': 'article.tags'
          }
@@ -169,14 +169,14 @@ A code example of returning results in pages set using `limit` and `startAt`
 
 ```javascript
     var results = index.search({
-         text: 'promises', 
+         text: 'promises',
          facets: {
             'path': 'article.tags'
          }
         'limit': 20,
         'startAt': 20,
-        'sort': { 
-            'path': 'article.titles', 
+        'sort': {
+            'path': 'article.titles',
             'reverse': true
         }
     })
@@ -206,7 +206,7 @@ The `Persist` object options has a property `auto` if set to `true` the data in 
 ```javascript
     var index = new Mani(options);
   var persist = new Persist(index, {
-          name: 'places', 
+          name: 'places',
           auto: true
       }, function(err, items){
       // add action such as search
@@ -220,7 +220,7 @@ Properties used for persist:
 
 The `save` and `load` functions for manually storing data have callback to which are call once the data is either stored or restored. You should make sure you give an index a name before using this feature.
 
-The save function persist the data into the browser 
+The save function persist the data into the browser
 ```javascript
     index.save(function(err, items){
         console.log( err, items );
@@ -235,7 +235,7 @@ The load function restores the data back into your index
 ```
 
 ### Serialize data and indexs to and from a JSON file
-You can Serialize data and Mani indexs into a simple to use and store JSON file. This is useful for static site generation or where the data will not be updated once it sent to client. 
+You can Serialize data and Mani indexs into a simple to use and store JSON file. This is useful for static site generation or where the data will not be updated once it sent to client.
 
 To JSON
 ```javascript
@@ -255,26 +255,26 @@ From JSON
 
 ### Built on top of
 This project stand on the shoulders of others:
-* [lunrjs](http://lunrjs.com/) - free text search  
-* [nedb](https://github.com/louischatriot/nedb) - the query engine from nedb   
+* [lunrjs](http://lunrjs.com/) - free text search
+* [nedb](https://github.com/louischatriot/nedb) - the query engine from nedb
 * [geolib](https://github.com/manuelbieh/Geolib) - nearby search
-* [localForage](https://github.com/mozilla/localForage) - data persistance  
+* [localForage](https://github.com/mozilla/localForage) - data persistance
 
 ### The name "Mani"
 In viking mythology **Mani** is the man who drives the chariot that carries the Moon across the sky. I thought this would be a good name for a wrapper of [lunrjs](http://lunrjs.com/).
- 
- 
+
+
 ### Build
-Mani is build using [NPM](https://www.npmjs.com/) modules and [browerify](http://browserify.org/), to make devlopment a little easier I use [watchify](https://github.com/substack/watchify) to compile the js files as a I code. The two watchify commands for the project are: 
- 
+Mani is build using [NPM](https://www.npmjs.com/) modules and [browerify](http://browserify.org/), to make devlopment a little easier I use [watchify](https://github.com/substack/watchify) to compile the js files as a I code. The two watchify commands for the project are:
+
 * `watchify lib/index.js -s Mani -o mani.js`
 * `watchify lib/persist.js -s Persist -o mani-persist.js`
- 
+
 
 ### Tests
 The project has a number integration and unit tests. To run the test within the project type the following command.
 
-    $ mocka --reporter list
+    $ mocha --reporter list
 
 ### Support or Contact
 Having trouble, please raise an issue at: [https://github.com/glennjones/mani/issues](https://github.com/glennjones/mani/issues)
